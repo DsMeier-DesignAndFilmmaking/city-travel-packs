@@ -2,16 +2,13 @@
 
 import Link from "next/link";
 import { SyncButton } from "@/components/SyncButton";
-
-const CITIES = [
-  { slug: "tokyo", name: "Tokyo", country: "Japan" },
-  { slug: "paris", name: "Paris", country: "France" },
-] as const;
+import { getAllCities } from "@/lib/data/cities";
 
 export function CityListWithSync() {
+  const cities = getAllCities();
   return (
     <ul className="flex flex-col gap-2">
-      {CITIES.map(({ slug, name, country }) => (
+      {cities.map(({ slug, name, country }) => (
         <li
           key={slug}
           className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"

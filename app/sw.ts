@@ -15,6 +15,8 @@ declare global {
 
 declare const self: ServiceWorkerGlobalScope;
 
+// --- 1. CONFIGURATION & CONSTANTS ---
+
 const CACHE_NAMES = {
   cityPackV1: "city-pack-v1",
   cityPackJson: "city-pack-json",
@@ -22,22 +24,37 @@ const CACHE_NAMES = {
   uiAssets: "city-ui-assets",
 } as const;
 
-/** CacheFirst for city JSON; StaleWhileRevalidate for UI assets. */
+// Define the 10 core cities for the "Eager Pre-cache"
+const CORE_CITIES = [
+  'tokyo', 'paris', 'london', 'bangkok', 'dubai', 
+  'istanbul', 'singapore', 'new-york', 'hong-kong', 'seoul'
+];
+
+// Map cities to the specific API endpoint that returns their pack
+const cityPrecacheEntries: PrecacheEntry[] = CORE_CITIES.map(slug => ({
+  url: `/api/download-city?slug=${slug}`,
+  revision: "2026-v1", // Increment this to force all devices to re-sync
+}));
+
+// --- 2. CACHING STRATEGIES ---
+
 const cityRuntimeCaching = [
   {
+    // Matcher for the City Pack JSON API
     matcher: /\/api\/download-city\?slug=[^&]+/i,
     handler: new CacheFirst({
       cacheName: CACHE_NAMES.cityPackJson,
       plugins: [
         new ExpirationPlugin({
           maxEntries: 64,
-          maxAgeSeconds: 30 * 24 * 60 * 60,
+          maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
           maxAgeFrom: "last-used",
         }),
       ],
     }),
   },
   {
+    // Static Assets (CSS/JS)
     matcher: /\/_next\/static\/.+/i,
     handler: new StaleWhileRevalidate({
       cacheName: CACHE_NAMES.uiAssets,
@@ -45,12 +62,12 @@ const cityRuntimeCaching = [
         new ExpirationPlugin({
           maxEntries: 128,
           maxAgeSeconds: 30 * 24 * 60 * 60,
-          maxAgeFrom: "last-used",
         }),
       ],
     }),
   },
   {
+    // Next.js Optimized Images
     matcher: /\/_next\/image\?url=.+/i,
     handler: new StaleWhileRevalidate({
       cacheName: CACHE_NAMES.uiAssets,
@@ -58,20 +75,6 @@ const cityRuntimeCaching = [
         new ExpirationPlugin({
           maxEntries: 64,
           maxAgeSeconds: 7 * 24 * 60 * 60,
-          maxAgeFrom: "last-used",
-        }),
-      ],
-    }),
-  },
-  {
-    matcher: /\.(?:js|mjs|css|woff2?|ttf|otf|eot)$/i,
-    handler: new StaleWhileRevalidate({
-      cacheName: CACHE_NAMES.uiAssets,
-      plugins: [
-        new ExpirationPlugin({
-          maxEntries: 96,
-          maxAgeSeconds: 7 * 24 * 60 * 60,
-          maxAgeFrom: "last-used",
         }),
       ],
     }),
@@ -80,13 +83,21 @@ const cityRuntimeCaching = [
 
 const runtimeCaching = [...cityRuntimeCaching, ...defaultCache];
 
+// --- 3. SERWIST INITIALIZATION ---
+
 const serwist = new Serwist({
-  precacheEntries: self.__SW_MANIFEST,
+  // Combine build-time assets with our 10 eager city packs
+  precacheEntries: [
+    ...(self.__SW_MANIFEST || []),
+    ...cityPrecacheEntries
+  ],
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
   runtimeCaching,
 });
+
+// --- 4. CUSTOM FETCH & MESSAGE HANDLERS ---
 
 const INTERNAL_HEADER = "X-City-Pack-Internal";
 
@@ -103,10 +114,7 @@ function shouldCheckCityPackV1(url: URL): boolean {
   return /^https:\/\/(?:fonts\.googleapis\.com|fonts\.gstatic\.com)\//.test(url.href);
 }
 
-/**
- * Prioritize city-pack-v1 for city-related and static requests.
- * Check city-pack-v1 first; on miss fetch (then Serwist never sees these).
- */
+/** Intercept fetches to prioritize the offline-ready city-pack-v1 bucket */
 function handleCityPackV1Fetch(event: FetchEvent): void {
   const { request } = event;
   if (request.method !== "GET") return;
@@ -125,32 +133,7 @@ function handleCityPackV1Fetch(event: FetchEvent): void {
   );
 }
 
-const SYNC_TAG_PREFIX = "city-sync-";
-
-function handleRegisterSyncMessage(event: ExtendableMessageEvent): void {
-  const data = event.data;
-  if (!data || data.type !== "REGISTER_SYNC" || typeof data.id !== "string") return;
-  const id = data.id.trim();
-  if (!id) return;
-  if (!self.registration.sync) return;
-  const tag = `${SYNC_TAG_PREFIX}${id}`;
-  void self.registration.sync.register(tag);
-}
-
-function handleSyncEvent(event: SyncEvent): void {
-  const tag = event.tag;
-  if (!tag.startsWith(SYNC_TAG_PREFIX)) return;
-  const id = tag.slice(SYNC_TAG_PREFIX.length);
-  event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
-      for (const c of clients) {
-        c.postMessage({ type: "RETRY_SYNC", id });
-      }
-    })
-  );
-}
-
-/** Pre-cache City (legacy PRECACHE_CITY message): fetch JSON + document, store in city-pack-v1 and city-pack-{slug}. */
+/** Pre-cache single City via messaging (triggered by Download button) */
 function handlePrecacheCityMessage(event: ExtendableMessageEvent): void {
   const data = event.data;
   if (!data || data.type !== "PRECACHE_CITY" || typeof data.slug !== "string") return;
@@ -163,62 +146,61 @@ function handlePrecacheCityMessage(event: ExtendableMessageEvent): void {
   const pageUrl = `${base}/city/${encodeURIComponent(slug)}`;
 
   const bucketName = `${CACHE_NAMES.cityPackPrefix}${slug}`;
-  const v1 = CACHE_NAMES.cityPackV1;
   const jsonRequest = new Request(jsonUrl, { method: "GET" });
   const pageRequest = new Request(pageUrl, { method: "GET" });
 
   const work = (async () => {
-    const [jsonRes, pageRes] = await Promise.all([
-      fetch(jsonRequest),
-      fetch(pageRequest),
-    ]);
-
-    if (!jsonRes.ok && !pageRes.ok) {
-      throw new Error(`Pre-cache failed: ${jsonRes.status} / ${pageRes.status}`);
-    }
+    const [jsonRes, pageRes] = await Promise.all([fetch(jsonRequest), fetch(pageRequest)]);
+    if (!jsonRes.ok && !pageRes.ok) throw new Error("Pre-cache failed");
 
     const bucket = await caches.open(bucketName);
     const jsonCache = await caches.open(CACHE_NAMES.cityPackJson);
-    const packV1 = await caches.open(v1);
+    const packV1 = await caches.open(CACHE_NAMES.cityPackV1);
 
-    const put: Promise<void>[] = [];
     if (jsonRes.ok) {
-      put.push(bucket.put(jsonRequest, jsonRes.clone()));
-      put.push(jsonCache.put(jsonRequest, jsonRes.clone()));
-      put.push(packV1.put(jsonRequest, jsonRes.clone()));
+      const cloned = jsonRes.clone();
+      await Promise.all([
+        bucket.put(jsonRequest, cloned.clone()),
+        jsonCache.put(jsonRequest, cloned.clone()),
+        packV1.put(jsonRequest, cloned)
+      ]);
     }
     if (pageRes.ok) {
-      put.push(bucket.put(pageRequest, pageRes.clone()));
-      put.push(packV1.put(pageRequest, pageRes.clone()));
+      const cloned = pageRes.clone();
+      await Promise.all([
+        bucket.put(pageRequest, cloned.clone()),
+        packV1.put(pageRequest, cloned)
+      ]);
     }
-
-    await Promise.all(put);
   })();
 
   event.waitUntil(work);
-
-  if (event.ports?.[0]) {
-    work.then(() => event.ports[0].postMessage({ ok: true })).catch((err) =>
-      event.ports[0].postMessage({ ok: false, error: String(err) })
-    );
-  }
 }
 
-self.addEventListener(
-  "fetch",
-  (event: FetchEvent) => {
-    handleCityPackV1Fetch(event);
-  },
-  { capture: true }
-);
+// --- 5. EVENT LISTENERS ---
+
+self.addEventListener("fetch", (event: FetchEvent) => {
+  handleCityPackV1Fetch(event);
+}, { capture: true });
 
 self.addEventListener("message", (event: ExtendableMessageEvent) => {
-  handleRegisterSyncMessage(event);
+  // Handle manual sync registration or precache requests
+  if (event.data?.type === "REGISTER_SYNC") {
+      const tag = `city-sync-${event.data.id}`;
+      void self.registration.sync?.register(tag);
+  }
   handlePrecacheCityMessage(event);
 });
 
 self.addEventListener("sync", (event: SyncEvent) => {
-  handleSyncEvent(event);
+  if (event.tag.startsWith("city-sync-")) {
+    const id = event.tag.slice(10);
+    event.waitUntil(
+      self.clients.matchAll({ type: "window" }).then(clients => {
+        clients.forEach(c => c.postMessage({ type: "RETRY_SYNC", id }));
+      })
+    );
+  }
 });
 
 serwist.addEventListeners();

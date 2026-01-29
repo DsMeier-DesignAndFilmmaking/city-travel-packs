@@ -4,7 +4,7 @@
     "slug": "tokyo",
     "name": "Tokyo",
     "country": "Japan",
-    "lastUpdated": "2025-01-15T12:00:00Z",
+    "lastUpdated": "2026-01-10T08:00:00Z",
     "transitHacks": [
       {
         "id": "th-1",
@@ -26,7 +26,7 @@
       {
         "id": "le-1",
         "title": "Train manners",
-        "description": "Keep bags on your lap or in overhead racks. Don’t eat or drink on most trains. Priority seats are for elderly, pregnant, and disabled passengers.",
+        "description": "Keep bags on your lap or in overhead racks. Don't eat or drink on most trains. Priority seats are for elderly, pregnant, and disabled passengers.",
         "do": ["Queue in marked lines", "Offer your seat when needed", "Stand on the left on escalators (Tokyo)"],
         "dont": ["Talk on the phone", "Eat or drink on local trains", "Block doors"]
       },
@@ -55,12 +55,12 @@
     "slug": "paris",
     "name": "Paris",
     "country": "France",
-    "lastUpdated": "2025-01-14T10:00:00Z",
+    "lastUpdated": "2026-01-10T09:00:00Z",
     "transitHacks": [
       {
         "id": "th-1",
         "title": "Navigo Découverte",
-        "description": "Weekly pass (Mon–Sun) for zones 1–5. Bring a photo; you’ll need it to validate the pass. Cheaper than daily tickets if you’re staying 4+ days."
+        "description": "Weekly pass (Mon–Sun) for zones 1–5. Bring a photo; you'll need it to validate the pass. Cheaper than daily tickets if you're staying 4+ days."
       },
       {
         "id": "th-2",
@@ -78,13 +78,13 @@
         "id": "le-1",
         "title": "Greetings",
         "description": "Always say \"Bonjour\" when entering a shop or café. \"Bonsoir\" after dark. Skipping it is considered rude.",
-        "do": ["Say Bonjour/Bonsoir first", "Use \"s’il vous plaît\" and \"merci\"", "Keep voice moderate in restaurants"],
+        "do": ["Say Bonjour/Bonsoir first", "Use \"s'il vous plaît\" and \"merci\"", "Keep voice moderate in restaurants"],
         "dont": ["Speak loudly on transit", "Eat while walking in nice areas", "Assume everyone speaks English"]
       },
       {
         "id": "le-2",
         "title": "Dining",
-        "description": "Meals are leisurely. Don’t ask for the check too quickly—it can feel like you’re being rushed out.",
+        "description": "Meals are leisurely. Don't ask for the check too quickly—it can feel like you're being rushed out.",
         "do": ["Keep hands on the table (wrists visible)", "Try the house wine", "Reserve for dinner"],
         "dont": ["Split bills loudly", "Tip 20% (rounding up or 5–10% is fine)", "Order café au lait with dinner"]
       }
@@ -98,6 +98,414 @@
       "other": [
         { "id": "em-1", "label": "EU-wide emergency", "value": "112", "type": "phone" },
         { "id": "em-2", "label": "SOS Médecins", "value": "36 24", "type": "phone" }
+      ]
+    }
+  },
+  {
+    "id": "bangkok",
+    "slug": "bangkok",
+    "name": "Bangkok",
+    "country": "Thailand",
+    "lastUpdated": "2026-01-11T07:30:00Z",
+    "transitHacks": [
+      {
+        "id": "th-1",
+        "title": "Rabbit Card",
+        "description": "The Rabbit Card (BTS) and MRT equivalents work across BTS Skytrain, MRT, BRT, and many retailers. Top up at stations or 7-Eleven. Cheaper than single tickets and avoids queue chaos."
+      },
+      {
+        "id": "th-2",
+        "title": "BTS vs MRT vs river",
+        "description": "BTS (elevated) and MRT (underground) use different ticketing. For 2026, consider a stored-value card for each if you use both often. River ferries and express boats are cheap and skip traffic—ideal for Old City and riverside areas."
+      },
+      {
+        "id": "th-3",
+        "title": "Grab / Bolt",
+        "description": "Use Grab or Bolt for motorbike taxis and cars. Cheaper than hailed cabs; fix fares upfront. Avoid tuk-tuks for medium-long trips unless you agree a price first."
+      }
+    ],
+    "localEtiquette": [
+      {
+        "id": "le-1",
+        "title": "Respect for the King and religion",
+        "description": "Criticism of the monarchy is illegal. Don't step on or disrespect Thai currency (it bears the King's image). Dress modestly at temples and the Grand Palace.",
+        "do": ["Stand for the royal anthem in cinemas", "Remove shoes before entering temples and homes", "Wai (bow) when appropriate"],
+        "dont": ["Point feet at people or Buddha images", "Touch someone's head", "Discuss politics or royalty"]
+      },
+      {
+        "id": "le-2",
+        "title": "Temples and sacred sites",
+        "description": "Shoulders and knees must be covered. No shorts, sleeveless tops, or short skirts. Rent wraps at major sites if needed.",
+        "do": ["Speak quietly", "Ask before photographing monks", "Walk clockwise around stupas"],
+        "dont": ["Climb on Buddha images", "Wear shoes inside shrine areas", "Take inappropriate selfies"]
+      }
+    ],
+    "emergency": {
+      "countryCode": "+66",
+      "localEmergency": "191",
+      "police": "191",
+      "ambulance": "1669",
+      "fire": "199",
+      "other": [
+        { "id": "em-1", "label": "Tourist Police", "value": "1155", "type": "phone" },
+        { "id": "em-2", "label": "Bangkok EMS", "value": "1646", "type": "phone" }
+      ]
+    }
+  },
+  {
+    "id": "london",
+    "slug": "london",
+    "name": "London",
+    "country": "United Kingdom",
+    "lastUpdated": "2026-01-11T10:00:00Z",
+    "transitHacks": [
+      {
+        "id": "th-1",
+        "title": "Contactless / Oyster",
+        "description": "Use contactless debit/credit or Oyster. Same daily and weekly caps. No need to buy a separate Oyster if your card works. Tap in and out on Tube and rail."
+      },
+      {
+        "id": "th-2",
+        "title": "Phone snatching (2026)",
+        "description": "Moped and bike phone snatching remains common, especially near stations and at lights. Keep phones out of reach; avoid scrolling while walking at the curb. Use inside pockets or a cross-body bag."
+      },
+      {
+        "id": "th-3",
+        "title": "Elizabeth Line & off-peak",
+        "description": "Elizabeth Line connects Heathrow, central London, and beyond. Use off-peak where possible—fares are cheaper. Rail strikes still occur; check National Rail / TfL for disruptions."
+      }
+    ],
+    "localEtiquette": [
+      {
+        "id": "le-1",
+        "title": "Queuing and Tube etiquette",
+        "description": "Brits take queueing seriously. Don't push or skip. On escalators, stand on the right, walk on the left. Let people off the Tube before boarding.",
+        "do": ["Queue in line", "Say \"sorry\" and \"thank you\"", "Give up seats for those who need them"],
+        "dont": ["Eat smelly food on the Tube", "Spread bags on seats at peak", "Talk loudly on the phone"]
+      },
+      {
+        "id": "le-2",
+        "title": "Pubs and tipping",
+        "description": "Order (and often pay) at the bar. Tipping isn't expected but rounding up or 10% is appreciated. Don't gesture with your index finger; it can be seen as rude.",
+        "do": ["Wait your turn at the bar", "Hold doors for others", "Respect quiet in residential areas"],
+        "dont": ["Assume table service in pubs", "Talk politics unbidden", "Skip the queue"]
+      }
+    ],
+    "emergency": {
+      "countryCode": "+44",
+      "localEmergency": "999",
+      "police": "999",
+      "ambulance": "999",
+      "fire": "999",
+      "other": [
+        { "id": "em-1", "label": "Non-emergency police (UK)", "value": "101", "type": "phone" },
+        { "id": "em-2", "label": "EU/UK alternative", "value": "112", "type": "phone" }
+      ]
+    }
+  },
+  {
+    "id": "dubai",
+    "slug": "dubai",
+    "name": "Dubai",
+    "country": "United Arab Emirates",
+    "lastUpdated": "2026-01-12T06:00:00Z",
+    "transitHacks": [
+      {
+        "id": "th-1",
+        "title": "Nol Card tiers",
+        "description": "Silver (pay-as-you-go), Gold (premium Metro cabins), Red (tourist day passes). Silver is best for most visitors; top up at stations or authorised outlets. Works on Metro, Tram, buses, and water ferries."
+      },
+      {
+        "id": "th-2",
+        "title": "Metro cabin rules",
+        "description": "Gold Class and Women & Children cabins have clear signage. Don't use them unless eligible. Fines for eating, drinking, or inappropriate behaviour on Metro."
+      },
+      {
+        "id": "th-3",
+        "title": "Careem / Uber vs taxis",
+        "description": "RTA taxis are metered and reliable. Careem and Uber also operate. Surge pricing is common during peak. For short hops, Nol on buses or Tram can be cheaper."
+      }
+    ],
+    "localEtiquette": [
+      {
+        "id": "le-1",
+        "title": "Dress and public behaviour",
+        "description": "Dress modestly in public areas—shoulders and knees covered in malls and government buildings. PDA is frowned upon. No public drunkenness; alcohol only in licensed venues.",
+        "do": ["Respect Ramadan (no eating/drinking in public during daylight)", "Ask before photographing people", "Use right hand for handshakes and giving"],
+        "dont": ["Swear or make rude gestures", "Criticise the government or religion", "Display affection in public"]
+      },
+      {
+        "id": "le-2",
+        "title": "Hotels and licensed venues",
+        "description": "Alcohol is served only in licensed hotels and bars. Don't carry open alcohol in public. Drink responsibly; drunk behaviour can lead to arrest.",
+        "do": ["Keep receipts for alcohol purchases", "Follow venue dress codes", "Be respectful in mosques (non-Muslims at designated times only)"],
+        "dont": ["Drink and drive", "Bring pork or inappropriate materials into UAE", "Skip sunscreen—sun is intense"]
+      }
+    ],
+    "emergency": {
+      "countryCode": "+971",
+      "localEmergency": "999",
+      "police": "999",
+      "ambulance": "998",
+      "fire": "997",
+      "other": [
+        { "id": "em-1", "label": "Dubai Police (non-emergency)", "value": "901", "type": "phone" },
+        { "id": "em-2", "label": "Tourist security", "value": "800 4438", "type": "phone" }
+      ]
+    }
+  },
+  {
+    "id": "istanbul",
+    "slug": "istanbul",
+    "name": "Istanbul",
+    "country": "Turkey",
+    "lastUpdated": "2026-01-12T12:00:00Z",
+    "transitHacks": [
+      {
+        "id": "th-1",
+        "title": "Istanbulkart",
+        "description": "Reloadable Istanbulkart works on Metro, tram, funicular, ferry, and buses. Buy at machines or kiosks; one card can serve several people (tap per person). Much cheaper than single tickets."
+      },
+      {
+        "id": "th-2",
+        "title": "Ferries and traffic",
+        "description": "Traffic is heavy. Use ferries for cross-Bosphorus and Princes' Islands—scenic and often faster. Marmaray links Asian and European sides underground."
+      },
+      {
+        "id": "th-3",
+        "title": "Tram to Sultanahmet",
+        "description": "T1 tram serves Sultanahmet, Grand Bazaar, and Galata. Crowded; watch wallets and phones. Validate at platform readers."
+      }
+    ],
+    "localEtiquette": [
+      {
+        "id": "le-1",
+        "title": "Mosque dress codes",
+        "description": "Shoulders and knees must be covered; women cover hair. Many mosques provide loan scarves and wraps. Remove shoes; carry them in bags provided. Don't visit during prayer times if you're only touring.",
+        "do": ["Dress modestly before entering", "Speak quietly", "Ask before photographing inside"],
+        "dont": ["Wear shorts or sleeveless tops", "Point feet at the mihrab", "Walk in front of worshippers"]
+      },
+      {
+        "id": "le-2",
+        "title": "Bazaars and haggling",
+        "description": "Haggling is expected in bazaars. Be polite but firm. A smile and \"Hayır, teşekkürler\" (No, thank you) go far. Don't feel obliged to buy after tea.",
+        "do": ["Keep cash for small vendors", "Say \"Merhaba\" and \"Teşekkürler\"", "Check prices at a few stalls first"],
+        "dont": ["Be aggressive or rude when declining", "Touch items you don't intend to buy", "Photograph shopkeepers without asking"]
+      }
+    ],
+    "emergency": {
+      "countryCode": "+90",
+      "localEmergency": "112",
+      "police": "155",
+      "ambulance": "112",
+      "fire": "110",
+      "other": [
+        { "id": "em-1", "label": "Tourist police", "value": "0212 527 4503", "type": "phone" },
+        { "id": "em-2", "label": "Ambulance (112)", "value": "112", "type": "phone" }
+      ]
+    }
+  },
+  {
+    "id": "singapore",
+    "slug": "singapore",
+    "name": "Singapore",
+    "country": "Singapore",
+    "lastUpdated": "2026-01-13T02:00:00Z",
+    "transitHacks": [
+      {
+        "id": "th-1",
+        "title": "EZ-Link / NETS FlashPay",
+        "description": "Use EZ-Link or NETS FlashPay for MRT, LRT, and buses. Tap in and out. Same card can pay at some retail and F&B. Tourist passes available for unlimited travel over 1–3 days."
+      },
+      {
+        "id": "th-2",
+        "title": "MRT rules and fines",
+        "description": "No eating, drinking, or smoking. No durian. Penalties are stiff. MRT is clean, safe, and efficient; avoid peak 8–9am and 5–7pm if possible."
+      },
+      {
+        "id": "th-3",
+        "title": "Grab and taxis",
+        "description": "Grab and Gojek operate. Taxis use meters; surcharges apply at certain times and zones. Ride-hail often similar price; use either."
+      }
+    ],
+    "localEtiquette": [
+      {
+        "id": "le-1",
+        "title": "Backpack rules on MRT",
+        "description": "Take your backpack off on crowded MRT and buses—hold it in front or put it on the floor. Reduces bumping and saves space. \"Priority\" seats are for those who need them.",
+        "do": ["Remove backpack in peak hours", "Queue for trains", "Give up seats when needed"],
+        "dont": ["Eat or drink on public transport", "Smoke in non-designated areas", "Chew gum in public (banned)"]
+      },
+      {
+        "id": "le-2",
+        "title": "Littering and gum",
+        "description": "Heavy fines for littering, spitting, and chewing gum. Use bins. Don't jaywalk; use crossings. Laws are strictly enforced.",
+        "do": ["Use pedestrian crossings", "Respect queues", "Keep voices down in public"],
+        "dont": ["Litter", "Smoke indoors or in non-designated areas", "Bring chewing gum into Singapore"]
+      }
+    ],
+    "emergency": {
+      "countryCode": "+65",
+      "localEmergency": "999",
+      "police": "999",
+      "ambulance": "995",
+      "fire": "995",
+      "other": [
+        { "id": "em-1", "label": "Non-emergency police", "value": "1800 255 0000", "type": "phone" },
+        { "id": "em-2", "label": "ICA (immigration)", "value": "6391 6100", "type": "phone" }
+      ]
+    }
+  },
+  {
+    "id": "new-york",
+    "slug": "new-york",
+    "name": "New York",
+    "country": "United States",
+    "lastUpdated": "2026-01-13T14:00:00Z",
+    "transitHacks": [
+      {
+        "id": "th-1",
+        "title": "OMNY or MetroCard",
+        "description": "OMNY (contactless card or phone) or MetroCard for Subway and buses. OMNY has daily and weekly fare caps. MetroCard is being phased out; OMNY preferred for 2026."
+      },
+      {
+        "id": "th-2",
+        "title": "Subway tips",
+        "description": "Check MTA app or maps for service changes. Express vs local trains—know your stops. Avoid empty cars at night; they're often empty for a reason. Keep bags and phones secure."
+      },
+      {
+        "id": "th-3",
+        "title": "Citi Bike and ferries",
+        "description": "Citi Bike for short hops; Lyft Pink etc. can include passes. Ferry to Staten Island is free; other routes (e.g. East River) are cheap and scenic."
+      }
+    ],
+    "localEtiquette": [
+      {
+        "id": "le-1",
+        "title": "Subway and sidewalk",
+        "description": "Move to the centre of the car; don't block doors. Let people off before boarding. On sidewalks, walk on the right; don't stop abruptly in the middle of flow.",
+        "do": ["Stand right on escalators", "Keep volume down on transit", "Say \"excuse me\" when passing"],
+        "dont": ["Spread bags on seats", "Eat smelly food on the train", "Stand in the way of doors"]
+      },
+      {
+        "id": "le-2",
+        "title": "Tipping",
+        "description": "Tipping is expected: ~15–20% restaurants, a few dollars for bartenders, $1–2 per bag for porters, ~15–20% cabs/ride-hail.",
+        "do": ["Tip servers and bartenders", "Tip ride-hail and taxi", "Be direct but polite"],
+        "dont": ["Skip tips at sit-down restaurants", "Overtip or undertip drastically", "Assume table service at counter spots"]
+      }
+    ],
+    "emergency": {
+      "countryCode": "+1",
+      "localEmergency": "911",
+      "police": "911",
+      "ambulance": "911",
+      "fire": "911",
+      "other": [
+        { "id": "em-1", "label": "NYC non-emergency", "value": "311", "type": "phone" },
+        { "id": "em-2", "label": "Poison control", "value": "1-800-222-1222", "type": "phone" }
+      ]
+    }
+  },
+  {
+    "id": "hong-kong",
+    "slug": "hong-kong",
+    "name": "Hong Kong",
+    "country": "Hong Kong",
+    "lastUpdated": "2026-01-14T06:00:00Z",
+    "transitHacks": [
+      {
+        "id": "th-1",
+        "title": "Octopus card",
+        "description": "Octopus works on MTR, buses, trams, ferries, and many shops. Add value at MTR or convenience stores. Optional tourist Octopus with souvenir designs."
+      },
+      {
+        "id": "th-2",
+        "title": "MTR and peak hours",
+        "description": "MTR is fast and frequent. Avoid 8–9am and 6–7pm if possible. Airport Express and Tung Chung line serve the airport. Clear signage in English."
+      },
+      {
+        "id": "th-3",
+        "title": "Star Ferry and trams",
+        "description": "Star Ferry (Central–Tsim Sha Tsui) is cheap and scenic. Ding-ding trams on HK Island are iconic; board at the back, pay when leaving front."
+      }
+    ],
+    "localEtiquette": [
+      {
+        "id": "le-1",
+        "title": "Queuing and personal space",
+        "description": "Queue properly for transport and entries. Don't push. Personal space is limited in crowds; avoid spreading bags or blocking flow.",
+        "do": ["Queue in line", "Keep right on escalators", "Offer seats to elderly or pregnant"],
+        "dont": ["Eat on MTR", "Speak too loudly on transit", "Push or cut in line"]
+      },
+      {
+        "id": "le-2",
+        "title": "Dining and chopsticks",
+        "description": "Don't stick chopsticks upright in rice; it evokes incense for the dead. Don't tap bowls with chopsticks. Tea pouring is a gesture of respect; reciprocate or thank.",
+        "do": ["Accept tea with two fingers tap", "Try shared dishes", "Use serving chopsticks when provided"],
+        "dont": ["Stick chopsticks vertically in rice", "Pass food chopstick-to-chopstick", "Waste food conspicuously"]
+      }
+    ],
+    "emergency": {
+      "countryCode": "+852",
+      "localEmergency": "999",
+      "police": "999",
+      "ambulance": "999",
+      "fire": "999",
+      "other": [
+        { "id": "em-1", "label": "HK Police (non-emergency)", "value": "2527 7177", "type": "phone" },
+        { "id": "em-2", "label": "Travel health", "value": "2125 1133", "type": "phone" }
+      ]
+    }
+  },
+  {
+    "id": "seoul",
+    "slug": "seoul",
+    "name": "Seoul",
+    "country": "South Korea",
+    "lastUpdated": "2026-01-14T09:00:00Z",
+    "transitHacks": [
+      {
+        "id": "th-1",
+        "title": "T-money card",
+        "description": "T-money works on Metro, buses, taxis, and many convenience stores. Buy at stations or CU/GS25. Refund unused balance (minus fee) at machines before leaving."
+      },
+      {
+        "id": "th-2",
+        "title": "Subway etiquette",
+        "description": "Reserved seats (pink/silver) are for elderly, pregnant, and disabled. Don't use them otherwise. No eating on trains; keep volume down. Lines run late; useful for evening outings."
+      },
+      {
+        "id": "th-3",
+        "title": "Airport rail and Kakao T",
+        "description": "AREX links Incheon/Gimpo to Seoul. Kakao T is the main ride-hail app; have a local number or WiFi. Taxis rank outside stations; Uber operates but Kakao T is more common."
+      }
+    ],
+    "localEtiquette": [
+      {
+        "id": "le-1",
+        "title": "Respect and hierarchy",
+        "description": "Use two hands when giving or receiving (e.g. money, cards). Bow slightly when greeting. Don't pour your own drink; pour for others and they'll reciprocate.",
+        "do": ["Receive with two hands", "Remove shoes indoors when indicated", "Let elders eat or start first"],
+        "dont": ["Blow your nose loudly at the table", "Write names in red", "Stick chopsticks upright in rice"]
+      },
+      {
+        "id": "le-2",
+        "title": "Dining and drinking",
+        "description": "Wait for the eldest to start. Turn away when drinking soju with elders. Don't refuse first pour; take a sip. Tipping is not customary.",
+        "do": ["Say \"jal meokkessumnida\" before eating", "Pour for others", "Use both hands when holding glass for a pour"],
+        "dont": ["Tip", "Start eating before elders", "Refuse first drink outright—sip politely"]
+      }
+    ],
+    "emergency": {
+      "countryCode": "+82",
+      "localEmergency": "112",
+      "police": "112",
+      "ambulance": "119",
+      "fire": "119",
+      "other": [
+        { "id": "em-1", "label": "Tourist hotline", "value": "1330", "type": "phone" },
+        { "id": "em-2", "label": "Emergency (English)", "value": "119", "type": "phone" }
       ]
     }
   }
