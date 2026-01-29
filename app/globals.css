@@ -10,6 +10,12 @@
   --color-brand-navy: #0f172a;
   --color-brand-gold: #f59e0b;
   --color-brand-accent: #3b82f6;
+  /* Premium gold gradient scale (luxury PWA) */
+  --color-gold-400: #fbbf24;
+  --color-gold-500: #C9A227;
+  --color-gold-600: #b8860b;
+  --color-gold-700: #a67c1a;
+  --color-gold-800: #8b6914;
   
   /* UI Surface Colors */
   --color-background: var(--background);
@@ -21,6 +27,16 @@
   
   /* Custom Animations for "Download" states */
   --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-bounce-slow: bounce-slow 2s ease-in-out infinite;
+}
+
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 2s ease-in-out infinite;
 }
 
 @media (prefers-color-scheme: dark) {

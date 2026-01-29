@@ -4,7 +4,7 @@ import { OfflineStatus } from "@/components/OfflineStatus";
 import { AddToHomeScreenPrompt } from "@/components/AddToHomeScreenPrompt";
 import { UpdateCheckProvider } from "@/components/UpdateCheckProvider";
 import { PWABridge } from "@/components/PWABridge";
-import { GlobalSyncStatusBar } from "@/components/GlobalSyncStatusBar";
+import { SyncStatusHeader } from "@/components/SyncStatusHeader";
 import "./globals.css";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 
@@ -39,7 +39,7 @@ export default function RootLayout({
         <ServiceWorkerRegistrar />
         <PWABridge />
         <UpdateCheckProvider>
-          <GlobalSyncStatusBar />
+          <SyncStatusHeader />
           <div className="fixed top-4 right-4 z-50 md:top-5 md:right-5">
             <OfflineStatus />
           </div>

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { MapPin, Train, Heart, Phone, ChevronLeft } from "lucide-react";
 import { GlassCard } from "@/components/GlassCard";
-import { SyncButton } from "@/components/SyncButton";
+import { SmartTravelButton } from "@/components/SmartTravelButton";
 import { getCityBySlug, getAllCitySlugs } from "@/lib/data/cities";
 import type { TransitHack, EtiquetteItem, EmergencyInfo } from "@/lib/types/city";
 
@@ -98,10 +98,10 @@ export default async function CityPage({
       {/* Sticky Download CTA */}
       <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-white/10 bg-[#0f172a]/90 px-4 pt-3 backdrop-blur-xl pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto max-w-xl">
-          <SyncButton
+          <SmartTravelButton
             id={city.slug}
             cityName={city.name}
-            className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 font-medium text-[#0f172a] transition hover:opacity-95 active:scale-[0.99] disabled:opacity-70"
+            className="min-h-[52px]"
             style={{ backgroundColor: THEME.gold }}
           />
         </div>
