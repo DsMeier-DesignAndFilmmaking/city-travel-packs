@@ -33,28 +33,26 @@ const CORE_CITIES = [
 // Map cities to the specific API endpoint that returns their pack
 const cityPrecacheEntries: PrecacheEntry[] = CORE_CITIES.map(slug => ({
   url: `/api/download-city?slug=${slug}`,
-  revision: "2026-v1", // Increment this to force all devices to re-sync
+  revision: "2026-v1", 
 }));
 
 // --- 2. CACHING STRATEGIES ---
 
 const cityRuntimeCaching = [
   {
-    // Matcher for the City Pack JSON API
     matcher: /\/api\/download-city\?slug=[^&]+/i,
     handler: new CacheFirst({
       cacheName: CACHE_NAMES.cityPackJson,
       plugins: [
         new ExpirationPlugin({
           maxEntries: 64,
-          maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
+          maxAgeSeconds: 30 * 24 * 60 * 60,
           maxAgeFrom: "last-used",
         }),
       ],
     }),
   },
   {
-    // Static Assets (CSS/JS)
     matcher: /\/_next\/static\/.+/i,
     handler: new StaleWhileRevalidate({
       cacheName: CACHE_NAMES.uiAssets,
@@ -67,7 +65,6 @@ const cityRuntimeCaching = [
     }),
   },
   {
-    // Next.js Optimized Images
     matcher: /\/_next\/image\?url=.+/i,
     handler: new StaleWhileRevalidate({
       cacheName: CACHE_NAMES.uiAssets,
@@ -86,9 +83,11 @@ const runtimeCaching = [...cityRuntimeCaching, ...defaultCache];
 // --- 3. SERWIST INITIALIZATION ---
 
 const serwist = new Serwist({
-  // Combine build-time assets with our 10 eager city packs
   precacheEntries: [
     ...(self.__SW_MANIFEST || []),
+    // --- APP SHELL PRECACHE ---
+    // Explicitly cache the root so the Home Screen app isn't blank on first offline boot
+    { url: "/", revision: "2026-v1" }, 
     ...cityPrecacheEntries
   ],
   skipWaiting: true,
@@ -114,7 +113,6 @@ function shouldCheckCityPackV1(url: URL): boolean {
   return /^https:\/\/(?:fonts\.googleapis\.com|fonts\.gstatic\.com)\//.test(url.href);
 }
 
-/** Intercept fetches to prioritize the offline-ready city-pack-v1 bucket */
 function handleCityPackV1Fetch(event: FetchEvent): void {
   const { request } = event;
   if (request.method !== "GET") return;
@@ -133,7 +131,6 @@ function handleCityPackV1Fetch(event: FetchEvent): void {
   );
 }
 
-/** Pre-cache single City via messaging (triggered by Download button) */
 function handlePrecacheCityMessage(event: ExtendableMessageEvent): void {
   const data = event.data;
   if (!data || data.type !== "PRECACHE_CITY" || typeof data.slug !== "string") return;
@@ -184,7 +181,6 @@ self.addEventListener("fetch", (event: FetchEvent) => {
 }, { capture: true });
 
 self.addEventListener("message", (event: ExtendableMessageEvent) => {
-  // Handle manual sync registration or precache requests
   if (event.data?.type === "REGISTER_SYNC") {
       const tag = `city-sync-${event.data.id}`;
       void self.registration.sync?.register(tag);
