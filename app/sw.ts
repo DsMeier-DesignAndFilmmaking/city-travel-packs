@@ -86,8 +86,8 @@ const serwist = new Serwist({
   precacheEntries: [
     ...(self.__SW_MANIFEST || []),
     // --- APP SHELL PRECACHE ---
-    // Explicitly cache the root so the Home Screen app isn't blank on first offline boot
-    { url: "/", revision: "2026-v1" }, 
+    // revision: "2026-v2" forces the phone to update the shell if v1 was already there
+    { url: "/", revision: "2026-v2" }, 
     ...cityPrecacheEntries
   ],
   skipWaiting: true,
