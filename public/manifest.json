@@ -1,0 +1,10 @@
+{
+  "name": "City Travel Packs",
+  "short_name": "Travel Packs",
+  "description": "Premium city travel experiences",
+  "display": "standalone",
+  "theme_color": "#C9A227",
+  "background_color": "#1e293b",
+  "start_url": "/",
+  "orientation": "portrait"
+}

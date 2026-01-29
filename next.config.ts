@@ -1,8 +1,12 @@
+import withSerwistInit from "@serwist/next";
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  /* config options here */
-  reactCompiler: true,
-};
+const withSerwist = withSerwistInit({
+  disable: process.env.NODE_ENV !== "production",
+  swSrc: "app/sw.ts",
+  swDest: "public/sw.js",
+});
 
-export default nextConfig;
+const nextConfig: NextConfig = {};
+
+export default withSerwist(nextConfig);

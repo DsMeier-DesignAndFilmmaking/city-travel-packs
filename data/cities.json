@@ -1,0 +1,102 @@
+[
+  {
+    "id": "tokyo",
+    "slug": "tokyo",
+    "name": "Tokyo",
+    "country": "Japan",
+    "transitHacks": [
+      {
+        "id": "th-1",
+        "title": "Suica/Pasmo",
+        "description": "Get a rechargeable IC card at any station. Works on trains, buses, and many convenience stores. Tap in and out—no need to buy single tickets."
+      },
+      {
+        "id": "th-2",
+        "title": "Rush-hour gaps",
+        "description": "Avoid the Yamanote Line 7–9am and 5–7pm. Use the Chuo or Sobu lines for slightly less crowding, or travel just before/after peaks."
+      },
+      {
+        "id": "th-3",
+        "title": "Quiet carriages",
+        "description": "Many lines have \"women-only\" cars during rush hours (marked on the platform). General riders should avoid phone calls and loud conversations in all cars."
+      }
+    ],
+    "localEtiquette": [
+      {
+        "id": "le-1",
+        "title": "Train manners",
+        "description": "Keep bags on your lap or in overhead racks. Don’t eat or drink on most trains. Priority seats are for elderly, pregnant, and disabled passengers.",
+        "do": ["Queue in marked lines", "Offer your seat when needed", "Stand on the left on escalators (Tokyo)"],
+        "dont": ["Talk on the phone", "Eat or drink on local trains", "Block doors"]
+      },
+      {
+        "id": "le-2",
+        "title": "Tipping",
+        "description": "Tipping is not customary in Japan. It can even cause confusion. Excellent service is the norm without extra payment.",
+        "do": ["Say thank you (arigatou gozaimasu)", "Be polite and respectful"],
+        "dont": ["Leave cash tips", "Insist on tipping when declined"]
+      }
+    ],
+    "emergency": {
+      "countryCode": "+81",
+      "localEmergency": "110",
+      "police": "110",
+      "ambulance": "119",
+      "fire": "119",
+      "other": [
+        { "id": "em-1", "label": "Japan Helpline (24/7)", "value": "0570-000-911", "type": "phone" },
+        { "id": "em-2", "label": "Tokyo Metropolitan Police", "value": "03-3501-0110", "type": "phone" }
+      ]
+    }
+  },
+  {
+    "id": "paris",
+    "slug": "paris",
+    "name": "Paris",
+    "country": "France",
+    "transitHacks": [
+      {
+        "id": "th-1",
+        "title": "Navigo Découverte",
+        "description": "Weekly pass (Mon–Sun) for zones 1–5. Bring a photo; you’ll need it to validate the pass. Cheaper than daily tickets if you’re staying 4+ days."
+      },
+      {
+        "id": "th-2",
+        "title": "RATP app",
+        "description": "Use the official RATP app for real-time Métro, RER, and bus info. Offline maps available—download before you go."
+      },
+      {
+        "id": "th-3",
+        "title": "Avoid strike days",
+        "description": "Check for grèves (strikes) on RATP or SNCF. On strike days, expect reduced service; have backup plans (walking, Bolt, etc.)."
+      }
+    ],
+    "localEtiquette": [
+      {
+        "id": "le-1",
+        "title": "Greetings",
+        "description": "Always say \"Bonjour\" when entering a shop or café. \"Bonsoir\" after dark. Skipping it is considered rude.",
+        "do": ["Say Bonjour/Bonsoir first", "Use \"s’il vous plaît\" and \"merci\"", "Keep voice moderate in restaurants"],
+        "dont": ["Speak loudly on transit", "Eat while walking in nice areas", "Assume everyone speaks English"]
+      },
+      {
+        "id": "le-2",
+        "title": "Dining",
+        "description": "Meals are leisurely. Don’t ask for the check too quickly—it can feel like you’re being rushed out.",
+        "do": ["Keep hands on the table (wrists visible)", "Try the house wine", "Reserve for dinner"],
+        "dont": ["Split bills loudly", "Tip 20% (rounding up or 5–10% is fine)", "Order café au lait with dinner"]
+      }
+    ],
+    "emergency": {
+      "countryCode": "+33",
+      "localEmergency": "112",
+      "police": "17",
+      "ambulance": "15",
+      "fire": "18",
+      "other": [
+        { "id": "em-1", "label": "EU-wide emergency", "value": "112", "type": "phone" },
+        { "id": "em-2", "label": "SOS Médecins", "value": "36 24", "type": "phone" }
+      ]
+    }
+  }
+]
