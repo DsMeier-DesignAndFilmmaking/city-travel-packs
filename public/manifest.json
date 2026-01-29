@@ -6,6 +6,6 @@
   "scope": "/",
   "background_color": "#ffffff",
   "theme_color": "#C9A227",
-  "start_url": "/?mode=standalone",
+  "start_url": "/?utm_source=homescreen&mode=standalone",
   "orientation": "portrait"
 }

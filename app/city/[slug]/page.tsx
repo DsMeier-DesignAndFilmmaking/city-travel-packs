@@ -100,6 +100,7 @@ export default async function CityPage({
         <div className="mx-auto max-w-xl">
           <SyncButton
             id={city.slug}
+            cityName={city.name}
             className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 font-medium text-[#0f172a] transition hover:opacity-95 active:scale-[0.99] disabled:opacity-70"
             style={{ backgroundColor: THEME.gold }}
           />

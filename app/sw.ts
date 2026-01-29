@@ -29,11 +29,59 @@ const CORE_CITIES = [
   'istanbul', 'singapore', 'new-york', 'hong-kong', 'seoul'
 ];
 
-// Map cities to the specific API endpoint
+// Map cities to the specific API endpoint (eager precache for zero-latency offline)
 const cityPrecacheEntries: PrecacheEntry[] = CORE_CITIES.map(slug => ({
   url: `/api/download-city?slug=${slug}`,
-  revision: "2026-v3", // Matching v3 for consistency
+  revision: "2026-v4",
 }));
+
+// Progress: count only city pack precache entries so we don't reference __SW_MANIFEST twice
+const CITY_PACK_PRECACHE_COUNT = CORE_CITIES.length;
+let cityPackPrecachedCount = 0;
+let precacheStartedSent = false;
+const cityPackUrlRe = /\/api\/download-city\?slug=/;
+
+const precacheProgressPlugin = {
+  handlerWillStart: async ({
+    event,
+  }: {
+    event: ExtendableEvent;
+    request: Request;
+    state?: Record<string, unknown>;
+  }) => {
+    if (event?.type === "install" && !precacheStartedSent) {
+      precacheStartedSent = true;
+      const clients = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      clients.forEach((c) =>
+        c.postMessage({ type: "PRECACHE_STARTED", total: CITY_PACK_PRECACHE_COUNT })
+      );
+    }
+  },
+  handlerDidComplete: async ({
+    event,
+    request,
+  }: {
+    event: ExtendableEvent;
+    request?: Request;
+    error?: Error;
+  }) => {
+    if (event?.type === "install" && request?.url && cityPackUrlRe.test(request.url)) {
+      cityPackPrecachedCount += 1;
+      if (cityPackPrecachedCount >= CITY_PACK_PRECACHE_COUNT) {
+        const clients = await self.clients.matchAll({
+          type: "window",
+          includeUncontrolled: true,
+        });
+        clients.forEach((c) =>
+          c.postMessage({ type: "PRECACHE_COMPLETE", total: CITY_PACK_PRECACHE_COUNT })
+        );
+      }
+    }
+  },
+};
 
 // --- 2. CACHING STRATEGIES ---
 
@@ -74,12 +122,12 @@ const runtimeCaching = [...cityRuntimeCaching, ...defaultCache];
 const serwist = new Serwist({
   precacheEntries: [
     ...(self.__SW_MANIFEST || []),
-    // Force "v3" to ensure the new "Activate/Claim" logic is installed on devices
-    { url: "/", revision: "2026-v3" }, 
-    ...cityPrecacheEntries
+    { url: "/", revision: "2026-v4" },
+    ...cityPrecacheEntries,
   ],
-  skipWaiting: true,   
-  clientsClaim: true,  
+  precacheOptions: { plugins: [precacheProgressPlugin] },
+  skipWaiting: true,
+  clientsClaim: true,
   navigationPreload: true,
   runtimeCaching,
 });
