@@ -125,6 +125,30 @@ function handleCityPackV1Fetch(event: FetchEvent): void {
   );
 }
 
+const SYNC_TAG_PREFIX = "city-sync-";
+
+function handleRegisterSyncMessage(event: ExtendableMessageEvent): void {
+  const data = event.data;
+  if (!data || data.type !== "REGISTER_SYNC" || typeof data.id !== "string") return;
+  const id = data.id.trim();
+  if (!id) return;
+  const tag = `${SYNC_TAG_PREFIX}${id}`;
+  void self.registration.sync.register(tag);
+}
+
+function handleSyncEvent(event: SyncEvent): void {
+  const tag = event.tag;
+  if (!tag.startsWith(SYNC_TAG_PREFIX)) return;
+  const id = tag.slice(SYNC_TAG_PREFIX.length);
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const c of clients) {
+        c.postMessage({ type: "RETRY_SYNC", id });
+      }
+    })
+  );
+}
+
 /** Pre-cache City (legacy PRECACHE_CITY message): fetch JSON + document, store in city-pack-v1 and city-pack-{slug}. */
 function handlePrecacheCityMessage(event: ExtendableMessageEvent): void {
   const data = event.data;
@@ -188,7 +212,12 @@ self.addEventListener(
 );
 
 self.addEventListener("message", (event: ExtendableMessageEvent) => {
+  handleRegisterSyncMessage(event);
   handlePrecacheCityMessage(event);
+});
+
+self.addEventListener("sync", (event: SyncEvent) => {
+  handleSyncEvent(event);
 });
 
 serwist.addEventListeners();

@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { extractUrlsFromHtml, extractUrlsFromJson } from "@/lib/offline-sync-urls";
+import { markDownloaded } from "@/lib/city-pack-meta";
 
 const CACHE_NAME = "city-pack-v1";
 
@@ -15,7 +16,7 @@ export interface UseOfflineSyncResult {
   state: OfflineSyncState;
   progress: number;
   error: string | null;
-  sync: (id: string) => Promise<void>;
+  sync: (id: string, opts?: { onSyncFailed?: () => void }) => Promise<void>;
   isReady: (id: string) => Promise<boolean>;
 }
 
@@ -37,7 +38,7 @@ export function useOfflineSync(): UseOfflineSyncResult {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const sync = useCallback(async (id: string) => {
+  const sync = useCallback(async (id: string, opts?: { onSyncFailed?: () => void }) => {
     if (typeof caches === "undefined") {
       setError("Cache API not supported");
       setState("error");
@@ -60,8 +61,9 @@ export function useOfflineSync(): UseOfflineSyncResult {
       if (!jsonRes.ok) throw new Error(`API ${jsonRes.status}`);
       const jsonClone = jsonRes.clone();
       await cache.put(new Request(apiUrl), jsonClone);
-      const data = (await jsonRes.json()) as unknown;
+      const data = (await jsonRes.json()) as { lastUpdated?: string };
       const fromJson = extractUrlsFromJson(data, base);
+      const lastUpdated = typeof data?.lastUpdated === "string" ? data.lastUpdated : "";
 
       // 2. Fetch and cache document
       const docRes = await fetch(pageUrl);
@@ -91,9 +93,11 @@ export function useOfflineSync(): UseOfflineSyncResult {
 
       setProgress(100);
       setState("ready");
+      if (lastUpdated) await markDownloaded(id, lastUpdated);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setState("error");
+      opts?.onSyncFailed?.();
     }
   }, []);
 

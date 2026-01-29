@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { OfflineStatus } from "@/components/OfflineStatus";
 import { AddToHomeScreenPrompt } from "@/components/AddToHomeScreenPrompt";
+import { UpdateCheckProvider } from "@/components/UpdateCheckProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -34,11 +35,13 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <div className="fixed top-4 right-4 z-50 md:top-5 md:right-5">
-          <OfflineStatus />
-        </div>
-        {children}
-        <AddToHomeScreenPrompt />
+        <UpdateCheckProvider>
+          <div className="fixed top-4 right-4 z-50 md:top-5 md:right-5">
+            <OfflineStatus />
+          </div>
+          {children}
+          <AddToHomeScreenPrompt />
+        </UpdateCheckProvider>
       </body>
     </html>
   );

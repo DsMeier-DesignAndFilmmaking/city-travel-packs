@@ -6,10 +6,21 @@
 }
 
 @theme inline {
+  /* Brand Colors */
+  --color-brand-navy: #0f172a;
+  --color-brand-gold: #f59e0b;
+  --color-brand-accent: #3b82f6;
+  
+  /* UI Surface Colors */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  
+  /* Typography */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  /* Custom Animations for "Download" states */
+  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 @media (prefers-color-scheme: dark) {

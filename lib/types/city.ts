@@ -37,6 +37,7 @@ export interface City {
   slug: string;
   name: string;
   country: string;
+  lastUpdated: string; // ISO timestamp
   transitHacks: TransitHack[];
   localEtiquette: EtiquetteItem[];
   emergency: EmergencyInfo;
