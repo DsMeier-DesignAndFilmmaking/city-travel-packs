@@ -4,6 +4,7 @@ import { OfflineStatus } from "@/components/OfflineStatus";
 import { AddToHomeScreenPrompt } from "@/components/AddToHomeScreenPrompt";
 import { UpdateCheckProvider } from "@/components/UpdateCheckProvider";
 import "./globals.css";
+import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,9 +33,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        {/* Adds the client-side SW registration */}
+        <ServiceWorkerRegistrar /> 
+        
         <UpdateCheckProvider>
           <div className="fixed top-4 right-4 z-50 md:top-5 md:right-5">
             <OfflineStatus />

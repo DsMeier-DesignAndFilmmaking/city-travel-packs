@@ -132,6 +132,7 @@ function handleRegisterSyncMessage(event: ExtendableMessageEvent): void {
   if (!data || data.type !== "REGISTER_SYNC" || typeof data.id !== "string") return;
   const id = data.id.trim();
   if (!id) return;
+  if (!self.registration.sync) return;
   const tag = `${SYNC_TAG_PREFIX}${id}`;
   void self.registration.sync.register(tag);
 }

@@ -14,7 +14,7 @@ function registerSyncWithSW(id: string): void {
 }
 
 export function UpdateCheckProvider({ children }: { children: React.ReactNode }) {
-  const { sync, state } = useOfflineSync();
+  const { sync } = useOfflineSync();
   const [updates, setUpdates] = useState<UpdateBannerItem[]>([]);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
@@ -36,8 +36,7 @@ export function UpdateCheckProvider({ children }: { children: React.ReactNode })
         const s = server[id];
         if (!s) continue;
         const localTs = local[id];
-        if (!localTs) continue;
-        if (s.lastUpdated > localTs) list.push({ id, name: s.name });
+        if (!localTs || s.lastUpdated > localTs) list.push({ id, name: s.name });
       }
       setUpdates(list);
       setDismissed(false);

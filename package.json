@@ -4,15 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
+    "@next/swc-darwin-arm64": "^16.1.6",
     "@serwist/next": "^9.5.0",
     "idb-keyval": "^6.2.2",
     "lucide-react": "^0.563.0",
-    "next": "^15.1.0",
+    "next": "^16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
@@ -23,7 +24,7 @@
     "@types/react-dom": "^19",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
-    "eslint-config-next": "^15.1.0",
+    "eslint-config-next": "^16.1.6",
     "serwist": "^9.5.0",
     "tailwindcss": "^4",
     "typescript": "^5"

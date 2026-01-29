@@ -33,10 +33,15 @@ export function SyncButton({
     if (state === "ready") setReady(true);
   }, [state]);
 
+  const registerSync = useCallback(() => {
+    const sw = navigator.serviceWorker?.controller;
+    if (sw) sw.postMessage({ type: "REGISTER_SYNC", id });
+  }, [id]);
+
   const handleClick = useCallback(() => {
     if (state !== "syncing") setReady(false);
-    sync(id);
-  }, [id, sync, state]);
+    sync(id, { onSyncFailed: registerSync });
+  }, [id, sync, state, registerSync]);
 
   const syncing = state === "syncing";
   const done = state === "ready" || ready;
