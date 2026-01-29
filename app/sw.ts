@@ -32,7 +32,7 @@ const CORE_CITIES = [
 // Map cities to the specific API endpoint (eager precache for zero-latency offline)
 const cityPrecacheEntries: PrecacheEntry[] = CORE_CITIES.map(slug => ({
   url: `/api/download-city?slug=${slug}`,
-  revision: "2026-v4",
+  revision: "2026-v5",
 }));
 
 // Progress: count only city pack precache entries so we don't reference __SW_MANIFEST twice
@@ -122,7 +122,7 @@ const runtimeCaching = [...cityRuntimeCaching, ...defaultCache];
 const serwist = new Serwist({
   precacheEntries: [
     ...(self.__SW_MANIFEST || []),
-    { url: "/", revision: "2026-v4" },
+    { url: "/", revision: "2026-v5" },
     ...cityPrecacheEntries,
   ],
   precacheOptions: { plugins: [precacheProgressPlugin] },

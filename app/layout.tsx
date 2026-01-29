@@ -3,8 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { OfflineStatus } from "@/components/OfflineStatus";
 import { AddToHomeScreenPrompt } from "@/components/AddToHomeScreenPrompt";
 import { UpdateCheckProvider } from "@/components/UpdateCheckProvider";
-import { PWABridge } from "@/components/PWABridge";
-import { SyncStatusHeader } from "@/components/SyncStatusHeader";
+import { PWAHandshake } from "@/components/PWAHandshake";
+import { SyncBar } from "@/components/SyncBar";
 import "./globals.css";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 
@@ -37,9 +37,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ServiceWorkerRegistrar />
-        <PWABridge />
+        <PWAHandshake />
         <UpdateCheckProvider>
-          <SyncStatusHeader />
+          <SyncBar />
           <div className="fixed top-4 right-4 z-50 md:top-5 md:right-5">
             <OfflineStatus />
           </div>

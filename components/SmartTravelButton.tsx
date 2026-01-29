@@ -10,7 +10,7 @@ function isIOS(): boolean {
   return /iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
-function shareUrl(): string {
+function shareUrlWithStandalone(): string {
   if (typeof window === "undefined") return "";
   const u = new URL(window.location.href);
   u.searchParams.set("mode", "standalone");
@@ -61,18 +61,23 @@ export function SmartTravelButton({
     if (sw) sw.postMessage({ type: "REGISTER_SYNC", id });
   }, [id]);
 
-  const handleShare = useCallback(async () => {
-    if (typeof navigator === "undefined" || !navigator.share) return;
-    try {
-      await navigator.share({
-        title: `${cityName} Offline Travel Pack`,
-        text: `Access your ${cityName} guides, maps, and hacks without data.`,
-        url: shareUrl(),
-      });
-    } catch (e) {
-      if ((e as Error).name !== "AbortError") console.warn("Share failed:", e);
-    }
-  }, [cityName]);
+  const handleShare = useCallback(
+    async (opts?: { openCoachMarkOnIOS?: boolean }) => {
+      if (typeof navigator === "undefined" || !navigator.share) return;
+      const url = shareUrlWithStandalone();
+      if (opts?.openCoachMarkOnIOS && isIOS()) setCoachOpen(true);
+      try {
+        await navigator.share({
+          title: `${cityName} Offline Travel Pack`,
+          text: `Access your ${cityName} guides, maps, and hacks without data.`,
+          url,
+        });
+      } catch (e) {
+        if ((e as Error).name !== "AbortError") console.warn("Share failed:", e);
+      }
+    },
+    [cityName]
+  );
 
   const handleClick = useCallback(() => {
     const done = state === "ready" || ready;
@@ -80,6 +85,7 @@ export function SmartTravelButton({
     if (done) {
       if (isIOS()) {
         setCoachOpen(true);
+        if (navigator.share) void handleShare({ openCoachMarkOnIOS: false });
         return;
       }
       if (navigator.share) {
