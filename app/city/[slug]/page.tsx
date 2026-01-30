@@ -1,17 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { MapPin, Train, Heart, Phone, ChevronLeft } from "lucide-react";
+import { MapPin, Train, Heart, Phone } from "lucide-react";
 import { GlassCard } from "@/components/GlassCard";
-import { SmartTravelButton } from "@/components/SmartTravelButton";
+import { CityDetailLayout } from "./CityDetailLayout";
 import { getCityBySlug, getAllCitySlugs } from "@/lib/data/cities";
 import type { TransitHack, EtiquetteItem, EmergencyInfo } from "@/lib/types/city";
-
-const THEME = {
-  gold: "#C9A227",
-  slate: "#1e293b",
-  slateDark: "#0f172a",
-};
 
 export function generateStaticParams() {
   return getAllCitySlugs().map((slug) => ({ slug }));
@@ -41,29 +34,8 @@ export default async function CityPage({
   if (!city) notFound();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0f172a] via-[#1e293b] to-[#0f172a] pb-24">
-      {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-white/10 bg-[#0f172a]/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-xl items-center gap-3 px-4 py-3">
-          <Link
-            href="/"
-            className="flex size-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-zinc-300 transition hover:bg-white/10 hover:text-white"
-            aria-label="Back to home"
-          >
-            <ChevronLeft className="size-5" />
-          </Link>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate font-semibold text-white">{city.name}</h1>
-            <p className="flex items-center gap-1 truncate text-sm text-zinc-400">
-              <MapPin className="size-3.5 shrink-0" aria-hidden />
-              {city.country}
-            </p>
-          </div>
-        </div>
-      </header>
-
+    <CityDetailLayout slug={city.slug} city={city}>
       <main className="mx-auto max-w-xl px-4 py-6">
-        {/* Transit Hacks */}
         <Section
           id="transit"
           title="Transit Hacks"
@@ -74,7 +46,6 @@ export default async function CityPage({
           ))}
         </Section>
 
-        {/* Local Etiquette */}
         <Section
           id="etiquette"
           title="Local Etiquette"
@@ -85,7 +56,6 @@ export default async function CityPage({
           ))}
         </Section>
 
-        {/* Emergency Info */}
         <Section
           id="emergency"
           title="Emergency Info"
@@ -94,19 +64,7 @@ export default async function CityPage({
           <EmergencyCard info={city.emergency} />
         </Section>
       </main>
-
-      {/* Sticky Download CTA */}
-      <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-white/10 bg-[#0f172a]/90 px-4 pt-3 backdrop-blur-xl pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <div className="mx-auto max-w-xl">
-          <SmartTravelButton
-            id={city.slug}
-            cityName={city.name}
-            className="min-h-[52px]"
-            style={{ backgroundColor: THEME.gold }}
-          />
-        </div>
-      </div>
-    </div>
+    </CityDetailLayout>
   );
 }
 

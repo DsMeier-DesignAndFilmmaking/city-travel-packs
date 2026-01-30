@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCityBySlug } from "@/lib/data/cities";
 
+// Standard values from public/manifest.json
 const THEME_COLOR = "#C9A227";
 const BACKGROUND_COLOR = "#ffffff";
 
@@ -14,16 +15,16 @@ export async function GET(
     return NextResponse.json({ error: "City not found" }, { status: 404 });
   }
 
-  const startUrl = `/city/${encodeURIComponent(cityId)}?source=pwa`;
-  const name = `Travel Pack: ${city.name}`;
-  const shortName = `Travel Pack: ${city.name}`.slice(0, 12);
+  const name = `${cityId} Travel Pack`;
+  const startUrl = `/city/${cityId}?standalone=true`;
+  const scope = `/city/${cityId}/`;
 
   const manifest = {
     name,
-    short_name: shortName,
-    description: `Offline travel pack for ${city.name}, ${city.country}. Transit, etiquette, and emergency info.`,
+    short_name: name.slice(0, 12),
+    description: "Premium city travel experiences",
     display: "standalone" as const,
-    scope: "/",
+    scope,
     start_url: startUrl,
     background_color: BACKGROUND_COLOR,
     theme_color: THEME_COLOR,
