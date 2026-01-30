@@ -149,6 +149,16 @@ function shouldCheckCityPackV1(url: URL): boolean {
   return /^https:\/\/(?:fonts\.googleapis\.com|fonts\.gstatic\.com)\//.test(url.href);
 }
 
+function getCitySlugFromUrl(url: URL): string | null {
+  const cityMatch = url.pathname.match(/^\/city\/([^/]+)/);
+  if (cityMatch) return cityMatch[1];
+  const apiMatch = url.pathname.match(/^\/api\/cities\/([^/]+)/);
+  if (apiMatch) return apiMatch[1];
+  const slugParam = url.searchParams.get("slug");
+  if (slugParam && /^\/api\/download-city/.test(url.pathname)) return slugParam;
+  return null;
+}
+
 function handleCityPackV1Fetch(event: FetchEvent): void {
   const { request } = event;
   if (request.method !== "GET" || request.headers.get(INTERNAL_HEADER) === "1") return;
@@ -157,11 +167,24 @@ function handleCityPackV1Fetch(event: FetchEvent): void {
   if (!shouldCheckCityPackV1(u)) return;
 
   const norm = new Request(request.url, { method: "GET" });
+  const citySlug = getCitySlugFromUrl(u);
+
   event.respondWith(
-    caches.open(CACHE_NAMES.cityPackV1).then(async (cache) => {
-      const cached = await cache.match(norm);
+    (async () => {
+      if (citySlug) {
+        const cityCacheName = CACHE_NAMES.cityPackPrefix + citySlug;
+        try {
+          const cityCache = await caches.open(cityCacheName);
+          const cached = await cityCache.match(norm);
+          if (cached) return cached;
+        } catch {
+          // ignore
+        }
+      }
+      const packV1 = await caches.open(CACHE_NAMES.cityPackV1);
+      const cached = await packV1.match(norm);
       return cached || fetch(norm);
-    })
+    })()
   );
 }
 

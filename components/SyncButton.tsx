@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Download, Check, Loader2, Share2 } from "lucide-react";
+import { Download, Check, Loader2, Share2, RefreshCw, Trash2 } from "lucide-react";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { useIsStandalone } from "@/hooks/useIsStandalone";
 
 interface SyncButtonProps {
   /** City id (slug). */
@@ -21,8 +22,10 @@ export function SyncButton({
   className = "",
   style,
 }: SyncButtonProps) {
-  const { state, progress, error, sync, isReady } = useOfflineSync();
+  const isStandalone = useIsStandalone();
+  const { state, progress, error, sync, isReady, removeOfflineData } = useOfflineSync();
   const [ready, setReady] = useState(false);
+  const [removing, setRemoving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -58,65 +61,118 @@ export function SyncButton({
     }
   }, [cityName]);
 
+  const handleCheckForUpdates = useCallback(() => {
+    setReady(false);
+    sync(id, { onSyncFailed: registerSync });
+  }, [id, sync, registerSync]);
+
+  const handleRemoveOffline = useCallback(async () => {
+    setRemoving(true);
+    await removeOfflineData(id);
+    setReady(false);
+    setRemoving(false);
+  }, [id, removeOfflineData]);
+
   const handleClick = useCallback(() => {
     const done = state === "ready" || ready;
+    if (done && isStandalone) return; // standalone + done uses separate buttons
     if (done && canShare) {
       void handleShare();
       return;
     }
     if (state !== "syncing") setReady(false);
     sync(id, { onSyncFailed: registerSync });
-  }, [id, sync, state, registerSync, ready, handleShare]);
+  }, [id, sync, state, registerSync, ready, isStandalone, handleShare]);
 
   const syncing = state === "syncing";
   const done = state === "ready" || ready;
   const failed = state === "error";
+  const doneAndStandalone = done && isStandalone;
 
   return (
     <div className="flex flex-col gap-1">
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={syncing}
-        className={className}
-        style={style}
-        aria-busy={syncing}
-        aria-live="polite"
-        title={
-          done
-            ? "Save to Home Screen for 1-tap offline access"
-            : undefined
-        }
-      >
-        {syncing ? (
-          <>
-            <Loader2 className="size-5 shrink-0 animate-spin" aria-hidden />
-            <span>{progress}%</span>
-          </>
-        ) : done ? (
-          <>
-            {canShare ? (
-              <Share2 className="size-5 shrink-0" aria-hidden />
-            ) : (
-              <Check className="size-5 shrink-0" aria-hidden />
-            )}
-            <span>
-              {canShare ? "Share / Add to Home Screen" : "Offline Ready"}
-            </span>
-          </>
-        ) : failed ? (
-          <>
-            <Download className="size-5 shrink-0" aria-hidden />
-            <span>Retry</span>
-          </>
-        ) : (
-          <>
-            <Download className="size-5 shrink-0" aria-hidden />
-            <span>Download</span>
-          </>
-        )}
-      </button>
-      {done && (
+      {doneAndStandalone ? (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={handleCheckForUpdates}
+              disabled={syncing}
+              className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-[#C9A227]/40 bg-[#C9A227]/10 px-3 py-1.5 text-sm font-medium transition disabled:opacity-70 ${className}`}
+              style={style}
+              aria-busy={syncing}
+            >
+              {syncing ? (
+                <>
+                  <Loader2 className="size-4 shrink-0 animate-spin" aria-hidden />
+                  <span>{progress}%</span>
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="size-4 shrink-0" aria-hidden />
+                  <span>Check for Updates</span>
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={handleRemoveOffline}
+              disabled={removing}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              aria-busy={removing}
+            >
+              <Trash2 className="size-4 shrink-0" aria-hidden />
+              <span>Remove</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={handleClick}
+          disabled={syncing}
+          className={className}
+          style={style}
+          aria-busy={syncing}
+          aria-live="polite"
+          title={
+            done && !isStandalone
+              ? "Save to Home Screen for 1-tap offline access"
+              : undefined
+          }
+        >
+          {syncing ? (
+            <>
+              <Loader2 className="size-5 shrink-0 animate-spin" aria-hidden />
+              <span>{progress}%</span>
+            </>
+          ) : done ? (
+            <>
+              {canShare && !isStandalone ? (
+                <Share2 className="size-5 shrink-0" aria-hidden />
+              ) : (
+                <Check className="size-5 shrink-0" aria-hidden />
+              )}
+              <span>
+                {canShare && !isStandalone
+                  ? "Share / Add to Home Screen"
+                  : "Offline Ready"}
+              </span>
+            </>
+          ) : failed ? (
+            <>
+              <Download className="size-5 shrink-0" aria-hidden />
+              <span>Retry</span>
+            </>
+          ) : (
+            <>
+              <Download className="size-5 shrink-0" aria-hidden />
+              <span>Download</span>
+            </>
+          )}
+        </button>
+      )}
+      {done && !isStandalone && (
         <p className="text-center text-xs text-zinc-400" role="status">
           {canShare
             ? "Tap to share or add to Home Screen for 1-tap offline."

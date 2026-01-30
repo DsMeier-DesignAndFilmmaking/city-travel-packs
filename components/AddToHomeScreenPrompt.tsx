@@ -2,18 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { X, Smartphone } from "lucide-react";
+import { useIsStandalone } from "@/hooks/useIsStandalone";
 
 const DISMISS_KEY = "city-travel-packs-add-to-home-dismissed";
-
-function isStandalone(): boolean {
-  if (typeof window === "undefined") return false;
-  const n = navigator as Navigator & { standalone?: boolean };
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    (n.standalone === true) ||
-    (document.referrer.includes("android-app://") ?? false)
-  );
-}
 
 function isMobile(): boolean {
   if (typeof window === "undefined") return false;
@@ -24,6 +15,7 @@ function isMobile(): boolean {
 }
 
 export function AddToHomeScreenPrompt() {
+  const isStandalone = useIsStandalone();
   const [installable, setInstallable] = useState(false);
   const [dismissed, setDismissed] = useState(true);
   const [deferredPrompt, setDeferredPrompt] = useState<{
@@ -31,10 +23,11 @@ export function AddToHomeScreenPrompt() {
   } | null>(null);
 
   useEffect(() => {
+    if (isStandalone) return;
     const stored = localStorage.getItem(DISMISS_KEY);
     if (stored === "1") return;
 
-    if (!isMobile() || isStandalone()) return;
+    if (!isMobile()) return;
 
     const handler = (e: Event) => {
       e.preventDefault();
@@ -46,7 +39,7 @@ export function AddToHomeScreenPrompt() {
 
     window.addEventListener("beforeinstallprompt", handler);
     return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
+  }, [isStandalone]);
 
   const dismiss = useCallback(() => {
     setDismissed(true);
@@ -59,7 +52,7 @@ export function AddToHomeScreenPrompt() {
     dismiss();
   }, [deferredPrompt, dismiss]);
 
-  if (!installable || dismissed) return null;
+  if (isStandalone || !installable || dismissed) return null;
 
   return (
     <div

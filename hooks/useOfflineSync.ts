@@ -2,9 +2,14 @@
 
 import { useCallback, useState } from "react";
 import { extractUrlsFromHtml, extractUrlsFromJson } from "@/lib/offline-sync-urls";
-import { markDownloaded } from "@/lib/city-pack-meta";
+import { markDownloaded, removeDownloaded } from "@/lib/city-pack-meta";
+import { removeOfflineSlug } from "@/lib/offline-store";
 
-const CACHE_NAME = "city-pack-v1";
+const CACHE_PREFIX = "city-pack-";
+
+function cityCacheName(id: string): string {
+  return CACHE_PREFIX + id;
+}
 
 export type OfflineSyncState =
   | "idle"
@@ -18,6 +23,7 @@ export interface UseOfflineSyncResult {
   error: string | null;
   sync: (id: string, opts?: { onSyncFailed?: () => void }) => Promise<void>;
   isReady: (id: string) => Promise<boolean>;
+  removeOfflineData: (id: string) => Promise<void>;
 }
 
 async function fetchAndCache(
@@ -54,7 +60,7 @@ export function useOfflineSync(): UseOfflineSyncResult {
     const pageUrl = `${base}/city/${encodeURIComponent(id)}`;
 
     try {
-      const cache = await caches.open(CACHE_NAME);
+      const cache = await caches.open(cityCacheName(id));
 
       // 1. Fetch and cache API JSON
       const jsonRes = await fetch(apiUrl);
@@ -104,7 +110,7 @@ export function useOfflineSync(): UseOfflineSyncResult {
   const isReady = useCallback(async (id: string): Promise<boolean> => {
     if (typeof caches === "undefined") return false;
     try {
-      const cache = await caches.open(CACHE_NAME);
+      const cache = await caches.open(cityCacheName(id));
       const base = window.location.origin;
       const apiUrl = `${base}/api/cities/${encodeURIComponent(id)}`;
       const pageUrl = `${base}/city/${encodeURIComponent(id)}`;
@@ -118,5 +124,16 @@ export function useOfflineSync(): UseOfflineSyncResult {
     }
   }, []);
 
-  return { state, progress, error, sync, isReady };
+  const removeOfflineData = useCallback(async (id: string): Promise<void> => {
+    if (typeof caches === "undefined") return;
+    try {
+      await caches.delete(cityCacheName(id));
+      removeOfflineSlug(id);
+      await removeDownloaded(id);
+    } catch {
+      // best effort
+    }
+  }, []);
+
+  return { state, progress, error, sync, isReady, removeOfflineData };
 }

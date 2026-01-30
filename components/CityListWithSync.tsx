@@ -22,6 +22,7 @@ export function CityListWithSync() {
           <div className="shrink-0 px-3 py-2">
             <SyncButton
               id={slug}
+              cityName={name}
               className="flex items-center justify-center gap-1.5 rounded-lg border border-[#C9A227]/40 bg-[#C9A227]/10 px-3 py-1.5 text-sm font-medium text-[#1e293b] transition hover:bg-[#C9A227]/20 dark:text-white"
             />
           </div>

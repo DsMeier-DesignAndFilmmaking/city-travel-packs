@@ -30,8 +30,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: `City '${slug}' not found` }, { status: 404 });
     }
 
-    // 5. Return the city data with a 200 OK
-    return NextResponse.json(cityData);
+    // 5. Return the city data with long cache for offline storage
+    return NextResponse.json(cityData, {
+      headers: {
+        "Cache-Control": "public, max-age=31536000, immutable",
+      },
+    });
   } catch (error) {
     console.error("API Error reading cities.json:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

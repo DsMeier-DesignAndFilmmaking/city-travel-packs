@@ -42,3 +42,10 @@ export async function getLocalLastUpdated(id: string): Promise<string | undefine
   const m = await getCityPackMeta();
   return m.lastUpdated[id];
 }
+
+export async function removeDownloaded(id: string): Promise<void> {
+  const m = await getCityPackMeta();
+  const ids = m.downloadedIds.filter((x) => x !== id);
+  const { [id]: _, ...rest } = m.lastUpdated;
+  await setCityPackMeta({ downloadedIds: ids, lastUpdated: rest });
+}

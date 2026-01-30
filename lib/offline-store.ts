@@ -22,3 +22,10 @@ export function setOfflineSlug(slug: string): void {
 export function hasOfflineSlug(slug: string): boolean {
   return getOfflineSlugs().has(slug);
 }
+
+export function removeOfflineSlug(slug: string): void {
+  if (typeof window === "undefined") return;
+  const set = getOfflineSlugs();
+  set.delete(slug);
+  localStorage.setItem(OFFLINE_KEY, JSON.stringify([...set]));
+}
