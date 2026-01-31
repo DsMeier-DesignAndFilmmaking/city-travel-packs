@@ -99,12 +99,17 @@ export function AddToHomeScreenOverlay({
       aria-modal="true"
       aria-labelledby="ath-overlay-title"
       aria-describedby="ath-overlay-desc"
+      /* We keep the container fixed and at the top z-index */
       className="fixed inset-0 z-[100] flex flex-col items-center justify-end"
     >
+      {/* FIXED BACKDROP: 
+          Changed bg-black/70 to bg-black/20 
+          Reduced blur slightly for better performance/clarity on the Home Page
+      */}
       <button
         type="button"
         aria-label="Close"
-        className="absolute inset-0 cursor-default bg-black/70 backdrop-blur-sm transition-opacity"
+        className="absolute inset-0 cursor-default bg-black/20 backdrop-blur-[2px] transition-opacity"
         onClick={onClose}
       />
 
@@ -135,7 +140,7 @@ export function AddToHomeScreenOverlay({
 
       {/* Card with Safari toolbar mockup + instructions */}
       <div
-        className="relative z-10 w-full max-w-md rounded-t-2xl border-t border-[#C9A227]/30 bg-gradient-to-b from-[#1e293b] to-[#0f172a] px-6 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-[0_-8px 32px_rgba(0,0,0,0.4)]"
+        className="relative z-10 w-full max-w-md rounded-t-2xl border-t border-[#C9A227]/30 bg-gradient-to-b from-[#1e293b] to-[#0f172a] px-6 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-[0_-8px 32px_rgba(0,0,0,0.6)]"
       >
         <h2
           id="ath-overlay-title"
@@ -143,6 +148,8 @@ export function AddToHomeScreenOverlay({
         >
           Add to Home Screen
         </h2>
+        
+        {/* Instruction Text */}
         <p
           id="ath-overlay-desc"
           className="mb-4 text-center text-sm leading-relaxed text-zinc-300"
@@ -159,7 +166,7 @@ export function AddToHomeScreenOverlay({
           <SafariToolbarMockup />
         </div>
 
-        {/* Why am I doing this? tooltip */}
+        {/* Why Tooltip */}
         <div className="mb-4">
           <button
             type="button"
@@ -171,11 +178,12 @@ export function AddToHomeScreenOverlay({
           {showWhy && (
             <p className="mt-2 rounded-lg bg-white/5 px-3 py-2 text-xs leading-relaxed text-zinc-400">
               Adding to Home Screen gives you <strong className="text-zinc-300">100% offline access</strong> to the{" "}
-              {cityName} travel pack. Open the app from your home screen anytime—no Wi‑Fi or data needed.
+              {cityName} travel pack.
             </p>
           )}
         </div>
 
+        {/* Action Button */}
         <button
           type="button"
           onClick={onClose}

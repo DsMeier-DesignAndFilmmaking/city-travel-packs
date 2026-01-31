@@ -206,20 +206,27 @@ export function SyncButton({
       {error && <p className="text-xs text-red-400">{error}</p>}
 
       {/* Overlays: Stop propagation here as well to be safe */}
+      {/* Overlays: Use Portal-like positioning */}
       {!isStandalone && isMobile && (
-        <div onClick={(e) => e.stopPropagation()}>
-          {isIOS() ? (
-            <AddToHomeScreenOverlay
-              open={coachOpen}
-              onClose={() => setCoachOpen(false)}
-              cityName={cityName || "City"}
-            />
-          ) : (
-            <CoachMarkOverlay 
-              open={coachOpen} 
-              onClose={() => setCoachOpen(false)} 
-            />
-          )}
+        <div 
+          onClick={(e) => e.stopPropagation()}
+          className="fixed inset-0 z-[9999] pointer-events-none" 
+        >
+          {/* Re-enable pointer events for the actual children */}
+          <div className="pointer-events-auto h-full w-full">
+            {isIOS() ? (
+              <AddToHomeScreenOverlay
+                open={coachOpen}
+                onClose={() => setCoachOpen(false)}
+                cityName={cityName || "City"}
+              />
+            ) : (
+              <CoachMarkOverlay 
+                open={coachOpen} 
+                onClose={() => setCoachOpen(false)} 
+              />
+            )}
+          </div>
         </div>
       )}
     </div>
