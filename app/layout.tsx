@@ -6,7 +6,6 @@ import { UpdateCheckProvider } from "@/components/UpdateCheckProvider";
 import { PWAHandshake } from "@/components/PWAHandshake";
 import { SyncBar } from "@/components/SyncBar";
 import "./globals.css";
-import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,7 +36,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <ServiceWorkerRegistrar />
         <PWAHandshake />
         <UpdateCheckProvider>
           <SyncBar />

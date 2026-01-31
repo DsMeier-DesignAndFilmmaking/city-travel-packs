@@ -8,6 +8,7 @@ import { MapPin, X } from "lucide-react";
 import { ensureCityManifestWins } from "@/lib/pwa-utils";
 import { SmartTravelButton } from "@/components/SmartTravelButton";
 import { useCityPwaVerificationChecklist } from "@/hooks/useCityPwaVerificationChecklist";
+import { useCitySwRegistration } from "@/hooks/useCitySwRegistration";
 import { useIsStandalone } from "@/hooks/useIsStandalone";
 import { useOffline } from "@/hooks/useOffline";
 
@@ -31,28 +32,43 @@ function useCityManifest(slug: string) {
   useEffect(() => {
     const manifestUrl = `/api/manifest/${encodeURIComponent(slug)}`;
 
-    // Remove ALL existing manifests safely (null-check each before removeChild)
+    // Safely remove ALL existing manifests (null-check each before removeChild)
     const existing = document.querySelectorAll<HTMLLinkElement>('link[rel="manifest"]');
     existing.forEach((el) => {
-      if (el.parentNode) el.parentNode.removeChild(el);
+      // Ensure the parent node exists before calling removeChild to avoid errors
+      if (el && el.parentNode) {
+        el.parentNode.removeChild(el);
+      }
     });
 
-    // Manifest link without ?v= so Chrome beforeinstallprompt sees stable manifest/start_url
+    // Create new manifest link element
     const link = document.createElement("link");
     link.rel = "manifest";
     link.href = manifestUrl;
     link.id = CITY_MANIFEST_LINK_ID;
-    if (document.head) document.head.appendChild(link);
 
+    // Append to document head if it exists
+    if (document.head) {
+      document.head.appendChild(link);
+    }
+
+    // Ensure the city-specific manifest is the one in use
     ensureCityManifestWins(slug);
+
+    // Add a retry mechanism in case the first attempt fails
     const retry = setTimeout(() => ensureCityManifestWins(slug), 100);
 
+    // Cleanup function to remove the manifest link when the component unmounts or slug changes
     return () => {
       clearTimeout(retry);
+
+      // Only attempt to remove the element if it exists and has a parent node
       const el = document.getElementById(CITY_MANIFEST_LINK_ID);
-      if (el && el.parentNode) el.parentNode.removeChild(el);
+      if (el && el.parentNode) {
+        el.parentNode.removeChild(el);
+      }
     };
-  }, [slug]);
+  }, [slug]); // Re-run the effect if `slug` changes
 }
 
 /**
@@ -96,23 +112,23 @@ function useStandaloneOfflineLock(slug: string) {
 
   useEffect(() => {
     if (!isLocked) return;
-
+  
     const cityPath = `/city/${slug}`;
-
+  
     const onPopstate = () => {
       if (isOutsideCityScope(window.location.pathname, slug)) {
         router.replace(cityPath);
       }
     };
-
+  
     const onClick = (e: MouseEvent) => {
       const anchor = (e.target as Element)?.closest?.("a");
       if (!anchor?.href) return;
-
+  
       try {
         const url = new URL(anchor.href);
         if (url.origin !== window.location.origin) return;
-
+  
         if (isOutsideCityScope(url.pathname, slug)) {
           e.preventDefault();
           e.stopPropagation();
@@ -122,70 +138,18 @@ function useStandaloneOfflineLock(slug: string) {
         // ignore invalid hrefs
       }
     };
-
+  
     window.addEventListener("popstate", onPopstate);
     document.addEventListener("click", onClick, true);
-
+  
     return () => {
       if (window) window.removeEventListener("popstate", onPopstate);
       if (document) document.removeEventListener("click", onClick, true);
     };
   }, [isLocked, slug, router]);
-
-  useEffect(() => {
-    if (!isLocked || !pathname) return;
-    if (isOutsideCityScope(pathname, slug)) {
-      router.replace(`/city/${slug}`);
-    }
-  }, [isLocked, pathname, slug, router]);
+  
 
   return { isStandalone, isOffline, isLocked };
-}
-
-const CITY_SW_CACHE_NAME_PREFIX = "city-pack-";
-const CITY_SW_CACHE_NAME_SUFFIX = "-v1";
-
-/**
- * Register city-scoped service worker and wait for activation.
- */
-function useCitySwRegistration(slug: string) {
-  useEffect(() => {
-    if (!("serviceWorker" in navigator)) return;
-
-    const swUrl = `/city/${encodeURIComponent(slug)}/sw.js`;
-    const scope = `/city/${encodeURIComponent(slug)}/`;
-    const cacheName = `${CITY_SW_CACHE_NAME_PREFIX}${slug}${CITY_SW_CACHE_NAME_SUFFIX}`;
-
-    const onActive = () => {
-      console.log("[City SW] active and ready for install", { scope, cacheName });
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("city-sw-activated", { detail: { slug } }));
-      }
-    };
-
-    navigator.serviceWorker
-      .register(swUrl, { scope })
-      .then((reg) => {
-        if (reg.active) {
-          onActive();
-          return;
-        }
-        const worker = reg.installing ?? reg.waiting;
-        if (worker) {
-          const onStateChange = () => {
-            if (worker.state === "activated") {
-              onActive();
-              worker.removeEventListener("statechange", onStateChange);
-            }
-          };
-          worker.addEventListener("statechange", onStateChange);
-          if (worker.state === "activated") onActive();
-        }
-      })
-      .catch((err) => {
-        console.error("[City SW] Registration failed", err);
-      });
-  }, [slug]);
 }
 
 interface CityDetailLayoutProps {
@@ -213,13 +177,14 @@ export function CityDetailLayout({ slug, city, children }: CityDetailLayoutProps
   );
 
   const router = useRouter();
-  const pathname = usePathname();
 
+  // Custom back click handler
   const handleBackClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    // Explicitly navigate to the homepage
-    router.push("/");
+    // Hardcoded to navigate back to the homepage
+    router.push("/"); // Explicitly navigate to the homepage
   };
+  
 
   if (isStandalone) {
     return (
@@ -249,11 +214,12 @@ export function CityDetailLayout({ slug, city, children }: CityDetailLayoutProps
           <Link
             href="/"
             aria-label="Back"
-            onClick={handleBackClick}  // Attach the custom back click handler
             className="flex size-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white"
+            onClick={handleBackClick}  // Attach the custom back click handler
           >
             ←
           </Link>
+
           {headerContent}
         </div>
       </header>
@@ -273,3 +239,4 @@ export function CityDetailLayout({ slug, city, children }: CityDetailLayoutProps
     </div>
   );
 }
+
