@@ -4,32 +4,29 @@ import { useCallback, useEffect, useState } from "react";
 import { Download, Check, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useIsStandalone } from "@/hooks/useIsStandalone";
-import { updateManifest } from "@/lib/pwa-utils";
-
-// 1. IMPORT THE OVERLAYS
-import { CoachMarkOverlay } from "@/components/CoachMarkOverlay";
-import { AddToHomeScreenOverlay } from "@/components/AddToHomeScreenOverlay";
 
 interface SyncButtonProps {
+  /** City id (slug). */
   id: string;
+  /** City display name. */
   cityName?: string;
   className?: string;
   style?: React.CSSProperties;
 }
 
-function isIOS(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return /iPhone|iPad|iPod/i.test(navigator.userAgent);
-}
-
+/**
+ * Mobile detection hook to hide "Add to Home Screen" instructions on Desktop.
+ */
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
+
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
   return isMobile;
 }
 
@@ -45,9 +42,6 @@ export function SyncButton({
   
   const [ready, setReady] = useState(false);
   const [removing, setRemoving] = useState(false);
-  
-  // 2. ADD COACH OPEN STATE
-  const [coachOpen, setCoachOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,21 +75,16 @@ export function SyncButton({
   const handleClick = useCallback(() => {
     const done = state === "ready" || ready;
     
+    // If installed and done, we don't handle clicks here (handled by View A)
     if (done && isStandalone) return;
 
-    // 3. TRIGGER OVERLAY ON HOME PAGE
-    if (done && !isStandalone) {
-      updateManifest(id); // Ensure manifest matches the city clicked
-      if (isMobile) {
-        setCoachOpen(true);
-      }
-      return;
-    }
+    // If done but in browser, clicking does nothing or could trigger your 
+    // instructional overlay if you choose to import it here as well.
+    if (done && !isStandalone) return;
 
     if (state !== "syncing") setReady(false);
-    updateManifest(id);
     sync(id, { onSyncFailed: registerSync });
-  }, [id, sync, state, registerSync, ready, isStandalone, isMobile]);
+  }, [id, sync, state, registerSync, ready, isStandalone]);
 
   const syncing = state === "syncing";
   const done = state === "ready" || ready;
@@ -105,6 +94,7 @@ export function SyncButton({
   return (
     <div className="flex flex-col gap-1">
       {doneAndStandalone ? (
+        /* VIEW A: Installed App State */
         <div className="flex flex-col gap-1.5">
           <div className="flex gap-1.5">
             <button
@@ -137,6 +127,7 @@ export function SyncButton({
           </div>
         </div>
       ) : (
+        /* VIEW B: Browser State */
         <button
           type="button"
           onClick={handleClick}
@@ -153,7 +144,7 @@ export function SyncButton({
           ) : done ? (
             <>
               <Check className="size-5 shrink-0 text-emerald-500" />
-              <span className="cursor-pointer">
+              <span>
                 {isMobile ? "Offline Ready" : "Offline Ready"}
               </span>
             </>
@@ -171,9 +162,10 @@ export function SyncButton({
         </button>
       )}
 
+      {/* Instructional Helper Text: Only show on Mobile */}
       {done && !isStandalone && isMobile && (
-        <p className="text-center text-[10px] leading-tight text-zinc-400">
-          Tap to add to Home Screen
+        <p className="text-center text-[10px] leading-tight text-zinc-400" role="status">
+          Tap to add to Home Screen for offline access.
         </p>
       )}
 
@@ -187,24 +179,6 @@ export function SyncButton({
       )}
       
       {error && <p className="text-xs text-red-400">{error}</p>}
-
-      {/* 4. RENDER OVERLAYS */}
-      {!isStandalone && isMobile && (
-        <>
-          {isIOS() ? (
-            <AddToHomeScreenOverlay
-              open={coachOpen}
-              onClose={() => setCoachOpen(false)}
-              cityName={cityName || "City"}
-            />
-          ) : (
-            <CoachMarkOverlay 
-              open={coachOpen} 
-              onClose={() => setCoachOpen(false)} 
-            />
-          )}
-        </>
-      )}
     </div>
   );
 }
