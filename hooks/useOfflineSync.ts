@@ -62,14 +62,15 @@ export function useOfflineSync(): UseOfflineSyncResult {
     const base = window.location.origin;
     const apiUrl = `${base}/api/cities/${encodeURIComponent(id)}`;
     const pageUrl = `${base}/city/${encodeURIComponent(id)}`;
+    const manifestUrl = `${base}/api/manifest/${encodeURIComponent(id)}.json`;
     const downloadApiUrl = `${base}/api/download-city?slug=${encodeURIComponent(id)}`;
 
     try {
-      // 1. DISCOVERY PHASE: Fetch the page and API data to find JS/CSS dependencies
-      // We do this first regardless of SW status so we have the full URL list.
-      const [docRes, apiDataRes] = await Promise.all([
+      // 1. DISCOVERY PHASE: Fetch Page, API Data, and Manifest
+      const [docRes, apiDataRes, manifestRes] = await Promise.all([
         fetch(pageUrl),
-        fetch(apiUrl)
+        fetch(apiUrl),
+        fetch(manifestUrl)
       ]);
 
       if (!docRes.ok || !apiDataRes.ok) throw new Error("Failed to reach city server");
@@ -81,16 +82,53 @@ export function useOfflineSync(): UseOfflineSyncResult {
       const fromJson = extractUrlsFromJson(apiData, base);
       const lastUpdated = typeof apiData?.lastUpdated === "string" ? apiData.lastUpdated : "";
 
+      // 1b. MANIFEST DISCOVERY: Find icons and shortcuts to ensure PWA launches offline
+      const manifestAssets = new Set<string>();
+      manifestAssets.add(manifestUrl);
+      
+      if (manifestRes.ok) {
+        const manifestData = await manifestRes.json();
+        // Extract Icons
+        if (Array.isArray(manifestData.icons)) {
+          manifestData.icons.forEach((icon: any) => {
+            if (icon.src) manifestAssets.add(new URL(icon.src, base).href);
+          });
+        }
+        // Extract Shortcuts
+        if (Array.isArray(manifestData.shortcuts)) {
+          manifestData.shortcuts.forEach((s: any) => {
+            if (s.url) manifestAssets.add(new URL(s.url, base).href);
+            if (Array.isArray(s.icons)) {
+              s.icons.forEach((icon: any) => {
+                if (icon.src) manifestAssets.add(new URL(icon.src, base).href);
+              });
+            }
+          });
+        }
+      }
+
+      /**
+       * NEXT.JS DATA URL DISCOVERY
+       */
+      let nextDataUrl = "";
+      const buildIdMatch = html.match(/"buildId":"([^"]+)"/);
+      if (buildIdMatch && buildIdMatch[1]) {
+        const buildId = buildIdMatch[1];
+        nextDataUrl = `${base}/_next/data/${buildId}/city/${encodeURIComponent(id)}.json`;
+      }
+
       // Combine all unique assets into a single list
       const allUrls = Array.from(new Set([
         pageUrl, 
         apiUrl, 
         downloadApiUrl,
+        ...(nextDataUrl ? [nextDataUrl] : []),
+        ...Array.from(manifestAssets), // Added Manifest + Icons
         ...fromHtml, 
         ...fromJson
       ]));
 
-      // 2. DELEGATION PHASE: If Service Worker is active, send it the full URL list
+      // 2. DELEGATION PHASE: Send to SW
       const reg = await getCitySwRegistration(id);
       if (reg?.active) {
         const done = new Promise<void>((resolve, reject) => {
@@ -103,7 +141,6 @@ export function useOfflineSync(): UseOfflineSyncResult {
           };
           navigator.serviceWorker.addEventListener("message", handler);
           
-          // Trigger the SW to download the specific list we found
           reg.active?.postMessage({ 
             type: "download-city-pack", 
             slug: id,
@@ -118,15 +155,15 @@ export function useOfflineSync(): UseOfflineSyncResult {
         return;
       }
 
-      // 3. FALLBACK PHASE: Manual caching if no SW registration found
+      // 3. FALLBACK PHASE: Manual caching
       const cache = await caches.open(cityCacheName(id));
       
-      // Cache the clones we already have from the discovery phase
+      // Store already fetched resources
       await cache.put(new Request(pageUrl), new Response(html, { headers: docRes.headers }));
       await cache.put(new Request(apiUrl), new Response(JSON.stringify(apiData), { headers: apiDataRes.headers }));
 
       const total = allUrls.length;
-      let completed = 2; // HTML and API are done
+      let completed = 2;
 
       for (const u of allUrls) {
         if (u === apiUrl || u === pageUrl) continue;
@@ -155,13 +192,8 @@ export function useOfflineSync(): UseOfflineSyncResult {
       const cache = await caches.open(cityCacheName(id));
       const base = window.location.origin;
       const pageUrl = `${base}/city/${encodeURIComponent(id)}`;
-      const apiUrl = `${base}/api/cities/${encodeURIComponent(id)}`;
-      
-      const [page, api] = await Promise.all([
-        cache.match(pageUrl),
-        cache.match(apiUrl),
-      ]);
-      return !!(page && api);
+      const page = await cache.match(pageUrl);
+      return !!page;
     } catch {
       return false;
     }
@@ -173,9 +205,7 @@ export function useOfflineSync(): UseOfflineSyncResult {
       await caches.delete(cityCacheName(id));
       removeOfflineSlug(id);
       await removeDownloaded(id);
-    } catch {
-      // best effort
-    }
+    } catch { /* ignored */ }
   }, []);
 
   return { state, progress, error, sync, isReady, removeOfflineData };

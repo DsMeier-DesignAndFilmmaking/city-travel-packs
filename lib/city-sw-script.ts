@@ -1,6 +1,5 @@
 /**
- * Generates the city-scoped service worker script (standalone; no global SW imports).
- * Used by /api/sw/[city].js and /city/[slug]/sw.js so scope can be /city/[slug]/.
+ * Generates the city-scoped service worker script (standalone).
  */
 
 const SLUG_RE = /^[a-z0-9-]+$/;
@@ -50,47 +49,60 @@ self.addEventListener('activate', function (event) {
 
 self.addEventListener('fetch', function (event) {
   var url = new URL(event.request.url);
+  
+  // 1. Only handle same-origin GET requests
   if (url.origin !== self.location.origin) return;
   if (event.request.method !== 'GET') return;
 
   var path = url.pathname;
-  var isInCityScope = path === '${cityPath}' || path.indexOf('${cityPathPrefix}') === 0;
-  var isStaticAsset = path.indexOf('/_next/static/') === 0;
 
-  if (!isInCityScope && !isStaticAsset) return;
+  // 2. Identify if request is within the city's scope or a required asset
+  var isInCityScope = path === '${cityPath}' || path.indexOf('${cityPathPrefix}') === 0;
+  var isNextStatic = path.indexOf('/_next/static/') === 0;
+  var isNextData = path.indexOf('/_next/data/') === 0;
+  var isApiRequest = path.indexOf('/api/cities/') === 0 || path.indexOf('/api/download-city') === 0;
+
+  // If it's not part of this city's pack, let the browser handle it normally
+  if (!isInCityScope && !isNextStatic && !isNextData && !isApiRequest) return;
 
   event.respondWith(
     (async function() {
-      // 1. Silence Navigation Preload errors if the browser cancels it
+      const cache = await caches.open(CACHE_NAME);
+
+      // 3. Silence Navigation Preload errors (Standard PWA cleanup)
       if (event.preloadResponse) {
-        event.preloadResponse.catch(function() {
-          /* Preload cancelled because cache was faster or user navigated away */
-        });
+        event.preloadResponse.catch(function() { /* ignore */ });
       }
 
-      try {
-        // 2. Try Cache First for a snappy offline experience
-        const cache = await caches.open(CACHE_NAME);
-        const cachedRes = await cache.match(event.request);
-        if (cachedRes) return cachedRes;
+      // 4. STRATEGY: Cache-First
+      // In Airplane Mode, this is the only thing that matters.
+      const cachedRes = await cache.match(event.request);
+      if (cachedRes) {
+        return cachedRes;
+      }
 
-        // 3. Use Preload Response if available
+      // 5. If not in cache, try Preload (if browser started it)
+      try {
         const preloadedRes = await event.preloadResponse;
         if (preloadedRes) {
           cache.put(event.request, preloadedRes.clone());
           return preloadedRes;
         }
+      } catch (e) { /* ignore preload failure */ }
 
-        // 4. Fallback to Network
+      // 6. Network Fallback
+      try {
         const networkRes = await fetch(event.request);
         if (networkRes && networkRes.ok) {
           cache.put(event.request, networkRes.clone());
+          return networkRes;
         }
         return networkRes;
       } catch (err) {
-        // 5. Final Fallback: Attempt to match any available cache if network fails
-        const fallbackRes = await caches.match(event.request);
-        return fallbackRes;
+        // 7. Ultimate Offline Fallback
+        // If the specific request failed (e.g. Airplane mode) and wasn't in this specific 
+        // city cache, try a global match as a last resort.
+        return caches.match(event.request);
       }
     })()
   );

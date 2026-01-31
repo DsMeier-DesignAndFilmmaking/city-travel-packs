@@ -6,7 +6,9 @@ const GLOBAL_MANIFEST_PATH = "/manifest.json";
 export function isGlobalManifestHref(href: string): boolean {
   if (!href) return false;
   try {
-    const url = typeof document !== "undefined" ? new URL(href, document.baseURI) : new URL(href, "https://example.com");
+    const url = typeof document !== "undefined" 
+      ? new URL(href, document.baseURI) 
+      : new URL(href, "https://example.com");
     return url.pathname === GLOBAL_MANIFEST_PATH;
   } catch {
     return false;
@@ -14,35 +16,50 @@ export function isGlobalManifestHref(href: string): boolean {
 }
 
 /**
- * On city pages: remove any global manifest link so the city manifest wins (Step 11).
- * Call after injecting the city manifest to avoid Add to Home Screen using global start_url.
+ * Forces the browser to recognize the city-specific manifest.
+ * This is CRITICAL for offline access because it sets the 'start_url' 
+ * and 'scope' to the specific city path already stored in the Cache API.
  */
 export function ensureCityManifestWins(cityId: string): void {
   if (typeof document === "undefined") return;
 
+  // This API route must return a JSON with:
+  // "start_url": "/city/[cityId]?source=pwa",
+  // "scope": "/city/[cityId]/"
   const cityHref = `/api/manifest/${encodeURIComponent(cityId)}.json`;
+
+  // 1. Clean up ALL existing manifest links to avoid browser confusion
   document.querySelectorAll<HTMLLinkElement>('link[rel="manifest"]').forEach((link) => {
-    const href = link.getAttribute("href") ?? link.href ?? "";
-    if (isGlobalManifestHref(href)) {
-      link.remove();
-    }
+    link.remove();
   });
 
-  let link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
-  if (!link || isGlobalManifestHref(link.href)) {
-    link?.remove();
-    link = document.createElement("link");
-    link.rel = "manifest";
-    link.href = cityHref;
-    document.head.appendChild(link);
+  // 2. Inject the fresh city manifest
+  const link = document.createElement("link");
+  link.rel = "manifest";
+  link.id = "pwa-manifest"; // Unique ID for easier debugging
+  link.href = cityHref;
+  document.head.appendChild(link);
+
+  // 3. (Optional but recommended) iOS Meta Tag update
+  // Ensures that even if Safari ignores the manifest, it stays within the city scope.
+  let metaAppTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+  if (!metaAppTitle) {
+    metaAppTitle = document.createElement('meta');
+    (metaAppTitle as any).name = "apple-mobile-web-app-title";
+    document.head.appendChild(metaAppTitle);
   }
+  metaAppTitle.setAttribute("content", `Pack: ${cityId}`);
 }
 
 /**
- * Updates the document's manifest link to a city-specific manifest
- * so the browser Share sheet / Add to Home Screen uses the correct start_url.
+ * Updates the document's manifest link to a city-specific manifest.
  */
 export function updateManifest(cityId: string): void {
   if (typeof document === "undefined") return;
+  
+  // Directly trigger the swap
   ensureCityManifestWins(cityId);
+  
+  // Debug log to confirm manifest swap occurred before user taps "Add to Home Screen"
+  console.log(`[PWA] Manifest swapped to: /api/manifest/${cityId}.json`);
 }
