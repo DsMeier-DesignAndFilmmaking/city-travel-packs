@@ -17,27 +17,19 @@ interface SyncButtonProps {
   style?: React.CSSProperties;
 }
 
-/**
- * Detects if the user is on an iOS device.
- */
 function isIOS(): boolean {
   if (typeof navigator === "undefined") return false;
   return /iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
-/**
- * Mobile detection hook.
- */
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
-
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
-
   return isMobile;
 }
 
@@ -67,16 +59,48 @@ export function SyncButton({
     if (state === "ready") setReady(true);
   }, [state]);
 
-  const registerSync = useCallback(() => {
-    const sw = navigator.serviceWorker?.controller;
-    if (sw) sw.postMessage({ type: "REGISTER_SYNC", id });
+  /**
+   * CRITICAL: Register the City-Specific Service Worker with a trailing slash scope.
+   * This ensures the SW intercepts requests for /city/[id]/ in Airplane Mode.
+   */
+  const ensureCitySw = useCallback(async () => {
+    if (typeof navigator === "undefined" || !navigator.serviceWorker) return null;
+    
+    const swUrl = `/api/sw/${id}.js`;
+    const scope = `/city/${id}/`; // Matches the start_url in manifest
+    
+    try {
+      const reg = await navigator.serviceWorker.register(swUrl, { scope });
+      // Wait for it to be active so it can receive messages
+      if (reg.installing || reg.waiting) {
+        await new Promise<void>((resolve) => {
+          const sw = reg.installing || reg.waiting;
+          sw?.addEventListener('statechange', (e: any) => {
+            if (e.target.state === 'activated') resolve();
+          });
+        });
+      }
+      return reg;
+    } catch (err) {
+      console.error("[SyncButton] SW Registration failed:", err);
+      return null;
+    }
   }, [id]);
+
+  const handleSync = useCallback(async () => {
+    setReady(false);
+    // 1. Swap the manifest
+    updateManifest(id);
+    // 2. Lay the pipes (register SW with scope)
+    await ensureCitySw();
+    // 3. Start the sync
+    sync(id);
+  }, [id, ensureCitySw, sync]);
 
   const handleCheckForUpdates = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setReady(false);
-    sync(id, { onSyncFailed: registerSync });
+    handleSync();
   };
 
   const handleRemoveOffline = async (e: React.MouseEvent) => {
@@ -88,29 +112,26 @@ export function SyncButton({
     setRemoving(false);
   };
 
-  const handleClick = (e: React.MouseEvent) => {
-    // PREVENT BUBBLING: This stops the parent Link from navigating
+  const handleClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
-    const done = state === "ready" || ready;
+    const isDone = state === "ready" || ready;
     
-    // 1. If installed and done, click is ignored (or could open the pack)
-    if (done && isStandalone) return;
+    // Always ensure manifest and SW are aligned on click
+    updateManifest(id);
+    await ensureCitySw();
 
-    // 2. If done but in browser, trigger the installation overlay
-    if (done && !isStandalone) {
-      updateManifest(id);
-      if (isMobile) {
-        setCoachOpen(true);
-      }
+    if (isDone && isStandalone) return;
+
+    if (isDone && !isStandalone) {
+      if (isMobile) setCoachOpen(true);
       return;
     }
 
-    // 3. Start download process
-    if (state !== "syncing") setReady(false);
-    updateManifest(id);
-    sync(id, { onSyncFailed: registerSync });
+    if (state !== "syncing") {
+      handleSync();
+    }
   };
 
   const syncing = state === "syncing";
@@ -121,7 +142,6 @@ export function SyncButton({
   return (
     <div className="flex flex-col gap-1">
       {doneAndStandalone ? (
-        /* VIEW A: Installed App State */
         <div className="flex flex-col gap-1.5">
           <div className="flex gap-1.5">
             <button
@@ -154,7 +174,6 @@ export function SyncButton({
           </div>
         </div>
       ) : (
-        /* VIEW B: Browser State */
         <button
           type="button"
           onClick={handleClick}
@@ -187,7 +206,6 @@ export function SyncButton({
         </button>
       )}
 
-      {/* Helper Text */}
       {done && !isStandalone && isMobile && (
         <p className="text-center text-[10px] leading-tight text-zinc-400">
           Tap to add to Home Screen
@@ -205,7 +223,6 @@ export function SyncButton({
       
       {error && <p className="text-xs text-red-400">{error}</p>}
 
-      {/* Overlays: Stop propagation here as well to be safe */}
       {!isStandalone && isMobile && (
         <div onClick={(e) => e.stopPropagation()}>
           {isIOS() ? (

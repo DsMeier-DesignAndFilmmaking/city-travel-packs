@@ -21,8 +21,9 @@ export async function GET(
     short_name: `${city.name} Pack`,
     description: "Premium city travel experiences",
     display: "standalone" as const,
+    // CRITICAL: Trailing slashes ensure the PWA starts within the SW scope
     scope: `/city/${citySlug}/`,
-    start_url: `/city/${citySlug}/`,
+    start_url: `/city/${citySlug}/`, 
     background_color: "#ffffff",
     theme_color: "#C9A227",
     orientation: "portrait" as const,

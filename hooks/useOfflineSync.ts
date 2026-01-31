@@ -15,6 +15,7 @@ function cityCacheName(id: string): string {
 async function getCitySwRegistration(slug: string): Promise<ServiceWorkerRegistration | null> {
   if (typeof navigator === "undefined" || !navigator.serviceWorker) return null;
   const regs = await navigator.serviceWorker.getRegistrations();
+  // Matching the specific scope used for city packs
   const scopeSuffix = `/city/${slug}/`; 
   return regs.find((r) => r.scope.endsWith(scopeSuffix)) ?? null;
 }
@@ -30,6 +31,11 @@ export interface UseOfflineSyncResult {
   removeOfflineData: (id: string) => Promise<void>;
 }
 
+/**
+ * UPDATED: fetchAndCache handles "opaque" responses.
+ * For external assets (no CORS), status is 0 and ok is false. 
+ * We must allow caching status 0 for images/scripts from other origins.
+ */
 async function fetchAndCache(
   cache: Cache,
   url: string,
@@ -37,7 +43,13 @@ async function fetchAndCache(
 ): Promise<Response> {
   const req = new Request(url, { method: "GET", ...requestInit });
   const res = await fetch(req);
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${url}`);
+  
+  // Allow ok (200-299) OR opaque (0) responses
+  const isOpaque = res.type === 'opaque' || res.status === 0;
+  if (!res.ok && !isOpaque) {
+    throw new Error(`HTTP ${res.status}: ${url}`);
+  }
+
   const clone = res.clone();
   await cache.put(req, clone);
   return res;
@@ -61,12 +73,17 @@ export function useOfflineSync(): UseOfflineSyncResult {
 
     const base = window.location.origin;
     const apiUrl = `${base}/api/cities/${encodeURIComponent(id)}`;
+    
+    // ENSURE CONSISTENCY: If your app uses /city/tokyo, use that. 
+    // If your SW scope is /city/tokyo/, ensure you cache both or the exact one used.
     const pageUrl = `${base}/city/${encodeURIComponent(id)}`;
+    const pageUrlWithSlash = `${pageUrl}/`; 
+    
     const manifestUrl = `${base}/api/manifest/${encodeURIComponent(id)}.json`;
     const downloadApiUrl = `${base}/api/download-city?slug=${encodeURIComponent(id)}`;
 
     try {
-      // 1. DISCOVERY PHASE: Fetch Page, API Data, and Manifest
+      // 1. DISCOVERY PHASE
       const [docRes, apiDataRes, manifestRes] = await Promise.all([
         fetch(pageUrl),
         fetch(apiUrl),
@@ -82,53 +99,37 @@ export function useOfflineSync(): UseOfflineSyncResult {
       const fromJson = extractUrlsFromJson(apiData, base);
       const lastUpdated = typeof apiData?.lastUpdated === "string" ? apiData.lastUpdated : "";
 
-      // 1b. MANIFEST DISCOVERY: Find icons and shortcuts to ensure PWA launches offline
       const manifestAssets = new Set<string>();
       manifestAssets.add(manifestUrl);
       
       if (manifestRes.ok) {
         const manifestData = await manifestRes.json();
-        // Extract Icons
         if (Array.isArray(manifestData.icons)) {
           manifestData.icons.forEach((icon: any) => {
             if (icon.src) manifestAssets.add(new URL(icon.src, base).href);
           });
         }
-        // Extract Shortcuts
-        if (Array.isArray(manifestData.shortcuts)) {
-          manifestData.shortcuts.forEach((s: any) => {
-            if (s.url) manifestAssets.add(new URL(s.url, base).href);
-            if (Array.isArray(s.icons)) {
-              s.icons.forEach((icon: any) => {
-                if (icon.src) manifestAssets.add(new URL(icon.src, base).href);
-              });
-            }
-          });
-        }
       }
 
-      /**
-       * NEXT.JS DATA URL DISCOVERY
-       */
       let nextDataUrl = "";
       const buildIdMatch = html.match(/"buildId":"([^"]+)"/);
       if (buildIdMatch && buildIdMatch[1]) {
-        const buildId = buildIdMatch[1];
-        nextDataUrl = `${base}/_next/data/${buildId}/city/${encodeURIComponent(id)}.json`;
+        nextDataUrl = `${base}/_next/data/${buildIdMatch[1]}/city/${encodeURIComponent(id)}.json`;
       }
 
-      // Combine all unique assets into a single list
+      // 2. COMBINE URLS
       const allUrls = Array.from(new Set([
-        pageUrl, 
+        pageUrl,
+        pageUrlWithSlash, // Cache both to be safe against redirect/slash issues
         apiUrl, 
         downloadApiUrl,
         ...(nextDataUrl ? [nextDataUrl] : []),
-        ...Array.from(manifestAssets), // Added Manifest + Icons
+        ...Array.from(manifestAssets),
         ...fromHtml, 
         ...fromJson
       ]));
 
-      // 2. DELEGATION PHASE: Send to SW
+      // 3. DELEGATION TO SERVICE WORKER
       const reg = await getCitySwRegistration(id);
       if (reg?.active) {
         const done = new Promise<void>((resolve, reject) => {
@@ -155,22 +156,27 @@ export function useOfflineSync(): UseOfflineSyncResult {
         return;
       }
 
-      // 3. FALLBACK PHASE: Manual caching
+      // 4. FALLBACK PHASE: Manual caching
       const cache = await caches.open(cityCacheName(id));
       
-      // Store already fetched resources
-      await cache.put(new Request(pageUrl), new Response(html, { headers: docRes.headers }));
+      // Store the specific navigation pages explicitly
+      const pageResponse = new Response(html, { headers: docRes.headers });
+      await cache.put(new Request(pageUrl), pageResponse.clone());
+      await cache.put(new Request(pageUrlWithSlash), pageResponse);
+      
       await cache.put(new Request(apiUrl), new Response(JSON.stringify(apiData), { headers: apiDataRes.headers }));
 
       const total = allUrls.length;
-      let completed = 2;
+      let completed = 3;
 
       for (const u of allUrls) {
-        if (u === apiUrl || u === pageUrl) continue;
+        // Skip urls we manually put in cache already
+        if (u === apiUrl || u === pageUrl || u === pageUrlWithSlash) continue;
+        
         try {
           await fetchAndCache(cache, u);
         } catch (e) {
-          console.warn(`[Sync] Skipping failed asset: ${u}`);
+          console.warn(`[Sync] Asset failed: ${u}`, e);
         }
         completed++;
         setProgress(Math.round((completed / total) * 100));
@@ -192,7 +198,8 @@ export function useOfflineSync(): UseOfflineSyncResult {
       const cache = await caches.open(cityCacheName(id));
       const base = window.location.origin;
       const pageUrl = `${base}/city/${encodeURIComponent(id)}`;
-      const page = await cache.match(pageUrl);
+      // Check for either the slashed or non-slashed version
+      const page = await cache.match(pageUrl, { ignoreSearch: true });
       return !!page;
     } catch {
       return false;

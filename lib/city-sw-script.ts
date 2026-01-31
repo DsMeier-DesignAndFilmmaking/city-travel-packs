@@ -67,42 +67,62 @@ self.addEventListener('fetch', function (event) {
 
   event.respondWith(
     (async function() {
-      const cache = await caches.open(CACHE_NAME);
-
-      // 3. Silence Navigation Preload errors (Standard PWA cleanup)
-      if (event.preloadResponse) {
-        event.preloadResponse.catch(function() { /* ignore */ });
-      }
-
-      // 4. STRATEGY: Cache-First
-      // In Airplane Mode, this is the only thing that matters.
-      const cachedRes = await cache.match(event.request);
-      if (cachedRes) {
-        return cachedRes;
-      }
-
-      // 5. If not in cache, try Preload (if browser started it)
       try {
-        const preloadedRes = await event.preloadResponse;
-        if (preloadedRes) {
-          cache.put(event.request, preloadedRes.clone());
-          return preloadedRes;
+        const cache = await caches.open(CACHE_NAME);
+
+        // 3. ATTEMPT CACHE MATCH
+        // ignoreSearch: true is vital for "Add to Home Screen" apps which often 
+        // append query params that would otherwise cause a cache miss.
+        const cachedRes = await cache.match(event.request, { ignoreSearch: true });
+        if (cachedRes) return cachedRes;
+
+        // 4. ATTEMPT PRELOAD
+        if (event.preloadResponse) {
+          try {
+            const preloadedRes = await event.preloadResponse;
+            if (preloadedRes) {
+              cache.put(event.request, preloadedRes.clone());
+              return preloadedRes;
+            }
+          } catch (e) { /* ignore preload failure */ }
         }
-      } catch (e) { /* ignore preload failure */ }
 
-      // 6. Network Fallback
-      try {
-        const networkRes = await fetch(event.request);
-        if (networkRes && networkRes.ok) {
-          cache.put(event.request, networkRes.clone());
+        // 5. ATTEMPT NETWORK
+        try {
+          const networkRes = await fetch(event.request);
+          // Only cache successful GET responses
+          if (networkRes && networkRes.ok) {
+            cache.put(event.request, networkRes.clone());
+            return networkRes;
+          }
+          // If network returned 404/500, return it so the app knows
           return networkRes;
+        } catch (fetchErr) {
+          // 6. AIRPLANE MODE FALLBACK
+          // The network failed (no connection).
+          
+          // If this is a navigation request (the main page), return the cached HTML root
+          if (event.request.mode === 'navigate' || isInCityScope) {
+            const rootRes = await cache.match('${cityPath}', { ignoreSearch: true });
+            if (rootRes) return rootRes;
+          }
+
+          // Last ditch effort: try matching the request anywhere in this cache again
+          const lastDitchRes = await cache.match(event.request, { ignoreSearch: true });
+          if (lastDitchRes) return lastDitchRes;
+
+          // 7. CRITICAL: GUARANTEED RETURN
+          // Never let this function return null. If we have nothing, return a 
+          // 503 response so the browser doesn't throw a generic error.
+          return new Response("Offline: Resource not in cache", {
+            status: 503,
+            statusText: "Service Unavailable",
+            headers: new Headers({ 'Content-Type': 'text/plain' })
+          });
         }
-        return networkRes;
-      } catch (err) {
-        // 7. Ultimate Offline Fallback
-        // If the specific request failed (e.g. Airplane mode) and wasn't in this specific 
-        // city cache, try a global match as a last resort.
-        return caches.match(event.request);
+      } catch (globalErr) {
+        // Fallback for any catastrophic code failure
+        return new Response("Service Worker Error", { status: 500 });
       }
     })()
   );
