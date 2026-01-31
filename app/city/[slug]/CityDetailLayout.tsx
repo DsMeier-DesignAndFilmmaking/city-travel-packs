@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { MapPin, X } from "lucide-react";
 
 import { ensureCityManifestWins } from "@/lib/pwa-utils";
@@ -14,143 +14,53 @@ import { useOffline } from "@/hooks/useOffline";
 
 import type { City } from "@/lib/types/city";
 
-/** True if pathname is outside /city/[slug] and its subpaths */
-function isOutsideCityScope(pathname: string, slug: string): boolean {
-  const prefix = `/city/${slug}`;
-  return pathname !== prefix && !pathname.startsWith(prefix + "/");
-}
-
 const THEME = { gold: "#C9A227" };
 const CITY_MANIFEST_LINK_ID = "city-travel-pack-manifest";
 
 /**
  * Inject city-specific manifest and ensure it wins over any global manifest.
- * A. No query params on manifest link href so start_url / scope stay clean for beforeinstallprompt.
- * A. Safe cleanup on unmount/route change with null checks to avoid removeChild errors.
  */
 function useCityManifest(slug: string) {
   useEffect(() => {
     const manifestUrl = `/api/manifest/${encodeURIComponent(slug)}`;
 
-    // Safely remove ALL existing manifests (null-check each before removeChild)
     const existing = document.querySelectorAll<HTMLLinkElement>('link[rel="manifest"]');
     existing.forEach((el) => {
-      // Ensure the parent node exists before calling removeChild to avoid errors
       if (el && el.parentNode) {
         el.parentNode.removeChild(el);
       }
     });
 
-    // Create new manifest link element
     const link = document.createElement("link");
     link.rel = "manifest";
     link.href = manifestUrl;
     link.id = CITY_MANIFEST_LINK_ID;
 
-    // Append to document head if it exists
     if (document.head) {
       document.head.appendChild(link);
     }
 
-    // Ensure the city-specific manifest is the one in use
     ensureCityManifestWins(slug);
 
-    // Add a retry mechanism in case the first attempt fails
     const retry = setTimeout(() => ensureCityManifestWins(slug), 100);
 
-    // Cleanup function to remove the manifest link when the component unmounts or slug changes
     return () => {
       clearTimeout(retry);
-
-      // Only attempt to remove the element if it exists and has a parent node
       const el = document.getElementById(CITY_MANIFEST_LINK_ID);
       if (el && el.parentNode) {
         el.parentNode.removeChild(el);
       }
     };
-  }, [slug]); // Re-run the effect if `slug` changes
-}
-
-/**
- * Dev-only logging for validating install state.
- */
-function useInstallEligibilityDebug(slug: string) {
-  useEffect(() => {
-    const link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
-    const manifestUrl = link?.getAttribute("href") ?? "(none)";
-
-    const isStandalone =
-      (window.navigator as Navigator & { standalone?: boolean }).standalone === true ||
-      window.matchMedia("(display-mode: standalone)").matches;
-
-    const displayMode = isStandalone ? "standalone" : "browser";
-    const isSecure = window.location.protocol === "https:";
-    const hasManifest = !!link?.href;
-
-    console.log("[City PWA Debug]", {
-      slug,
-      manifestUrl,
-      displayMode,
-      eligibleForAddToHomeScreen: hasManifest && isSecure && !isStandalone,
-      hasManifest,
-      isSecure,
-      isStandalone,
-    });
   }, [slug]);
 }
 
 /**
- * When standalone + offline, lock navigation to this city.
+ * Handle "back" action: Go directly to the homepage.
  */
-function useStandaloneOfflineLock(slug: string) {
-  const isStandalone = useIsStandalone();
-  const isOffline = useOffline();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  const isLocked = isStandalone && isOffline;
-
-  useEffect(() => {
-    if (!isLocked) return;
-  
-    const cityPath = `/city/${slug}`;
-  
-    const onPopstate = () => {
-      if (isOutsideCityScope(window.location.pathname, slug)) {
-        router.replace(cityPath);
-      }
-    };
-  
-    const onClick = (e: MouseEvent) => {
-      const anchor = (e.target as Element)?.closest?.("a");
-      if (!anchor?.href) return;
-  
-      try {
-        const url = new URL(anchor.href);
-        if (url.origin !== window.location.origin) return;
-  
-        if (isOutsideCityScope(url.pathname, slug)) {
-          e.preventDefault();
-          e.stopPropagation();
-          router.replace(cityPath);
-        }
-      } catch {
-        // ignore invalid hrefs
-      }
-    };
-  
-    window.addEventListener("popstate", onPopstate);
-    document.addEventListener("click", onClick, true);
-  
-    return () => {
-      if (window) window.removeEventListener("popstate", onPopstate);
-      if (document) document.removeEventListener("click", onClick, true);
-    };
-  }, [isLocked, slug, router]);
-  
-
-  return { isStandalone, isOffline, isLocked };
-}
+const handleBackClick = (e: React.MouseEvent, router: any) => {
+  e.preventDefault();
+  router.push("/"); // Navigate directly to the homepage
+};
 
 interface CityDetailLayoutProps {
   slug: string;
@@ -159,10 +69,10 @@ interface CityDetailLayoutProps {
 }
 
 export function CityDetailLayout({ slug, city, children }: CityDetailLayoutProps) {
-  const { isStandalone } = useStandaloneOfflineLock(slug);
+  const isStandalone: boolean = useIsStandalone(); // Correct: returns boolean
+  const router = useRouter();
 
   useCityManifest(slug);
-  useInstallEligibilityDebug(slug);
   useCitySwRegistration(slug);
   useCityPwaVerificationChecklist(slug);
 
@@ -176,16 +86,6 @@ export function CityDetailLayout({ slug, city, children }: CityDetailLayoutProps
     </div>
   );
 
-  const router = useRouter();
-
-  // Custom back click handler
-  const handleBackClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    // Hardcoded to navigate back to the homepage
-    router.push("/"); // Explicitly navigate to the homepage
-  };
-  
-
   if (isStandalone) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-[#0f172a] via-[#1e293b] to-[#0f172a] pb-8">
@@ -194,7 +94,7 @@ export function CityDetailLayout({ slug, city, children }: CityDetailLayoutProps
             <Link
               href="/"
               aria-label="Close pack"
-              onClick={handleBackClick}  // Attach the custom back click handler
+              onClick={(e) => handleBackClick(e, router)}
               className="flex size-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white"
             >
               <X className="size-5" />
@@ -215,7 +115,7 @@ export function CityDetailLayout({ slug, city, children }: CityDetailLayoutProps
             href="/"
             aria-label="Back"
             className="flex size-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white"
-            onClick={handleBackClick}  // Attach the custom back click handler
+            onClick={(e) => handleBackClick(e, router)}
           >
             ←
           </Link>
@@ -239,4 +139,3 @@ export function CityDetailLayout({ slug, city, children }: CityDetailLayoutProps
     </div>
   );
 }
-
