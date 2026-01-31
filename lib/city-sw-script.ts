@@ -55,28 +55,44 @@ self.addEventListener('fetch', function (event) {
 
   var path = url.pathname;
   var isInCityScope = path === '${cityPath}' || path.indexOf('${cityPathPrefix}') === 0;
-  
-  // Also allow caching of static assets if they are requested while in this city's scope
   var isStaticAsset = path.indexOf('/_next/static/') === 0;
 
   if (!isInCityScope && !isStaticAsset) return;
 
   event.respondWith(
-    fetch(event.request)
-      .then(function (res) {
-        if (res && res.ok) {
-          return caches.open(CACHE_NAME).then(function (cache) {
-            cache.put(event.request, res.clone());
-            return res;
-          });
-        }
-        return res;
-      })
-      .catch(function () {
-        return caches.open(CACHE_NAME).then(function (cache) {
-          return cache.match(event.request);
+    (async function() {
+      // 1. Silence Navigation Preload errors if the browser cancels it
+      if (event.preloadResponse) {
+        event.preloadResponse.catch(function() {
+          /* Preload cancelled because cache was faster or user navigated away */
         });
-      })
+      }
+
+      try {
+        // 2. Try Cache First for a snappy offline experience
+        const cache = await caches.open(CACHE_NAME);
+        const cachedRes = await cache.match(event.request);
+        if (cachedRes) return cachedRes;
+
+        // 3. Use Preload Response if available
+        const preloadedRes = await event.preloadResponse;
+        if (preloadedRes) {
+          cache.put(event.request, preloadedRes.clone());
+          return preloadedRes;
+        }
+
+        // 4. Fallback to Network
+        const networkRes = await fetch(event.request);
+        if (networkRes && networkRes.ok) {
+          cache.put(event.request, networkRes.clone());
+        }
+        return networkRes;
+      } catch (err) {
+        // 5. Final Fallback: Attempt to match any available cache if network fails
+        const fallbackRes = await caches.match(event.request);
+        return fallbackRes;
+      }
+    })()
   );
 });
 
@@ -87,15 +103,12 @@ self.addEventListener('message', function (event) {
   var source = event.source;
   if (!source) return;
 
-  // New logic: Use provided URLs (assets) or fallback to basic URLs
   var urlsToCache = event.data.urls || [PAGE_URL, DATA_URL];
 
   event.waitUntil(
     caches.open(CACHE_NAME).then(function (cache) {
       return Promise.all(
         urlsToCache.map(function (url) {
-          // Use { mode: 'no-cors' } only if needed, but for same-origin Next.js assets, 
-          // a standard fetch is preferred to ensure we get a valid status back.
           return fetch(url).then(function (res) {
             if (res && res.ok) {
               return cache.put(url, res);
