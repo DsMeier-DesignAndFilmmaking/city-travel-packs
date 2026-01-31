@@ -18,6 +18,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Global manifest applies to non-city routes; city routes opt-out and inject city manifest (Step 12).
 export const metadata: Metadata = {
   title: "City Travel Packs",
   description: "Premium city travel experiences",

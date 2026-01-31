@@ -145,7 +145,7 @@ export function SyncButton({
             <>
               <Check className="size-5 shrink-0 text-emerald-500" />
               <span>
-                {isMobile ? "Add to Home Screen" : "Offline Ready"}
+                {isMobile ? "Offline Ready" : "Offline Ready"}
               </span>
             </>
           ) : failed ? (

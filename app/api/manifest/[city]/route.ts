@@ -1,34 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCityBySlug } from "@/lib/data/cities";
 
-// Standard values from public/manifest.json
+// Standalone city manifest — no reference to global manifest
 const THEME_COLOR = "#C9A227";
 const BACKGROUND_COLOR = "#ffffff";
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ cityId: string }> }
+  { params }: { params: Promise<{ city: string }> }
 ) {
-  const { cityId } = await params;
-  const city = getCityBySlug(cityId);
+  const raw = (await params).city;
+  const citySlug = raw.endsWith(".json") ? raw.slice(0, -5) : raw;
+  const city = getCityBySlug(citySlug);
   if (!city) {
     return NextResponse.json({ error: "City not found" }, { status: 404 });
   }
 
-  const name = `${cityId} Travel Pack`;
-  const startUrl = `/city/${cityId}?standalone=true`;
-  const scope = `/city/${cityId}/`;
-
   const manifest = {
-    name,
-    short_name: name.slice(0, 12),
+    name: `${city.name} Travel Pack`,
+    short_name: city.name,
     description: "Premium city travel experiences",
     display: "standalone" as const,
-    scope,
-    start_url: startUrl,
+    scope: `/city/${citySlug}/`,
+    start_url: `/city/${citySlug}?standalone=true`,
     background_color: BACKGROUND_COLOR,
     theme_color: THEME_COLOR,
     orientation: "portrait" as const,
+    icons: [
+      { src: "/globe.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
+      { src: "/window.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
+    ],
   };
 
   return NextResponse.json(manifest, {

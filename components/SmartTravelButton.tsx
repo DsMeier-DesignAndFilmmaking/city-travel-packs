@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useIsStandalone } from "@/hooks/useIsStandalone";
+import { useCityInstallReady } from "@/hooks/useCityInstallReady";
 import { CoachMarkOverlay } from "@/components/CoachMarkOverlay";
 import { AddToHomeScreenOverlay } from "@/components/AddToHomeScreenOverlay";
 
@@ -50,7 +51,8 @@ export function SmartTravelButton({
   const isStandalone = useIsStandalone();
   const isMobile = useIsMobile();
   const { state, progress, error, sync, isReady, removeOfflineData } = useOfflineSync();
-  
+  const { isCityInstallReady, recheck: recheckInstallReady } = useCityInstallReady(id);
+
   const [checking, setChecking] = useState(true);
   const [ready, setReady] = useState(false);
   const [coachOpen, setCoachOpen] = useState(false);
@@ -75,8 +77,11 @@ export function SmartTravelButton({
     }
   }, [state]);
 
-  // When we reach "Ready: Add to Home Screen", ensure manifest is city-specific
-  // so the browser Share sheet picks up the correct start_url.
+  useEffect(() => {
+    if (state === "ready" || ready) void recheckInstallReady();
+  }, [state, ready, recheckInstallReady]);
+
+  // City page: always use city manifest so Add to Home Screen uses city start_url (Step 11).
   useEffect(() => {
     if ((state === "ready" || ready) && id) {
       updateManifest(id);
@@ -101,12 +106,12 @@ export function SmartTravelButton({
   }, [id, removeOfflineData]);
 
   const handleClick = useCallback(() => {
-    const isDone = state === "ready" || ready;
+    const syncComplete = state === "ready" || ready;
+    const isDone = syncComplete && isCityInstallReady;
 
     if (isDone && isStandalone) return;
 
-    // Trigger Coach Marks ONLY on Mobile. 
-    // On Desktop, it will stay in the "Ready" state without showing mobile instructions.
+    // Trigger Coach Marks ONLY on Mobile when install-ready (manifest + SW + cache).
     if (isDone && !isStandalone) {
       if (isMobile) {
         setCoachOpen(true);
@@ -119,10 +124,11 @@ export function SmartTravelButton({
     updateManifest(id);
     setReady(false);
     sync(id, { onSyncFailed: registerSync });
-  }, [id, sync, state, ready, isStandalone, registerSync, isMobile]);
+  }, [id, sync, state, ready, isCityInstallReady, isStandalone, registerSync, isMobile]);
 
   const syncing = state === "syncing";
-  const done = state === "ready" || ready;
+  const syncDone = state === "ready" || ready;
+  const done = syncDone && isCityInstallReady;
   const failed = state === "error";
   const disabled = checking || syncing;
   const isPremiumReady = done && !checking && !syncing;
@@ -187,6 +193,12 @@ export function SmartTravelButton({
                 <span className="animate-pulse text-zinc-100">
                   Saving {cityName}… {progress}%
                 </span>
+              </>
+            )}
+            {!checking && !syncing && syncDone && !isCityInstallReady && (
+              <>
+                <span className="text-zinc-400">⏳</span>
+                <span>Preparing install…</span>
               </>
             )}
             {!checking && !syncing && done && (
