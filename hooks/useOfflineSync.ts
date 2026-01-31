@@ -15,15 +15,11 @@ function cityCacheName(id: string): string {
 async function getCitySwRegistration(slug: string): Promise<ServiceWorkerRegistration | null> {
   if (typeof navigator === "undefined" || !navigator.serviceWorker) return null;
   const regs = await navigator.serviceWorker.getRegistrations();
-  const scopeSuffix = `/city/${slug}/`; // Ensure scope is correct for city pages
+  const scopeSuffix = `/city/${slug}/`; 
   return regs.find((r) => r.scope.endsWith(scopeSuffix)) ?? null;
 }
 
-export type OfflineSyncState =
-  | "idle"
-  | "syncing"
-  | "ready"
-  | "error";
+export type OfflineSyncState = "idle" | "syncing" | "ready" | "error";
 
 export interface UseOfflineSyncResult {
   state: OfflineSyncState;
@@ -66,73 +62,86 @@ export function useOfflineSync(): UseOfflineSyncResult {
     const base = window.location.origin;
     const apiUrl = `${base}/api/cities/${encodeURIComponent(id)}`;
     const pageUrl = `${base}/city/${encodeURIComponent(id)}`;
+    const downloadApiUrl = `${base}/api/download-city?slug=${encodeURIComponent(id)}`;
 
     try {
-      // Get the Service Worker registration only for city pages
-      const reg = await getCitySwRegistration(id);
-if (reg?.active) {
-  // Proceed only if reg.active is available
-  const done = new Promise<void>((resolve, reject) => {
-    const handler = (e: MessageEvent) => {
-      const d = e.data;
-      if (d?.type !== "download-city-pack-done" || d?.slug !== id) return;
-      navigator.serviceWorker.removeEventListener("message", handler);
-      if (d.error) reject(new Error(d.error));
-      else resolve();
-    };
-    navigator.serviceWorker.addEventListener("message", handler);
-    reg.active?.postMessage({ type: "download-city-pack", slug: id });
-  });
-  await done;
-  setProgress(100);
-  setState("ready");
-  await markDownloaded(id, "");
-  return;
-}
+      // 1. DISCOVERY PHASE: Fetch the page and API data to find JS/CSS dependencies
+      // We do this first regardless of SW status so we have the full URL list.
+      const [docRes, apiDataRes] = await Promise.all([
+        fetch(pageUrl),
+        fetch(apiUrl)
+      ]);
 
+      if (!docRes.ok || !apiDataRes.ok) throw new Error("Failed to reach city server");
 
-      // Proceed to manually cache resources if Service Worker is unavailable
-      const cache = await caches.open(cityCacheName(id));
-
-      // Fetch and cache the city API data
-      const jsonRes = await fetch(apiUrl);
-      if (!jsonRes.ok) throw new Error(`API ${jsonRes.status}`);
-      const jsonClone = jsonRes.clone();
-      await cache.put(new Request(apiUrl), jsonClone);
-      const data = (await jsonRes.json()) as { lastUpdated?: string };
-      const fromJson = extractUrlsFromJson(data, base);
-      const lastUpdated = typeof data?.lastUpdated === "string" ? data.lastUpdated : "";
-
-      // Fetch and cache the city page HTML
-      const docRes = await fetch(pageUrl);
-      if (!docRes.ok) throw new Error(`Page ${docRes.status}`);
-      const docClone = docRes.clone();
-      await cache.put(new Request(pageUrl), docClone);
       const html = await docRes.text();
+      const apiData = await apiDataRes.json();
+      
       const fromHtml = extractUrlsFromHtml(html, base);
+      const fromJson = extractUrlsFromJson(apiData, base);
+      const lastUpdated = typeof apiData?.lastUpdated === "string" ? apiData.lastUpdated : "";
 
-      const allUrls = new Set<string>([apiUrl, pageUrl, ...fromJson, ...fromHtml]);
-      const urls = [...allUrls];
-      const total = urls.length;
-      let done = 2; // Already completed the API and HTML caching
-      setProgress(total ? Math.round((done / total) * 100) : 100);
+      // Combine all unique assets into a single list
+      const allUrls = Array.from(new Set([
+        pageUrl, 
+        apiUrl, 
+        downloadApiUrl,
+        ...fromHtml, 
+        ...fromJson
+      ]));
 
-      // Cache all URLs that are not the API or page URL
-      for (let i = 0; i < urls.length; i++) {
-        const u = urls[i];
+      // 2. DELEGATION PHASE: If Service Worker is active, send it the full URL list
+      const reg = await getCitySwRegistration(id);
+      if (reg?.active) {
+        const done = new Promise<void>((resolve, reject) => {
+          const handler = (e: MessageEvent) => {
+            const d = e.data;
+            if (d?.type !== "download-city-pack-done" || d?.slug !== id) return;
+            navigator.serviceWorker.removeEventListener("message", handler);
+            if (d.error) reject(new Error(d.error));
+            else resolve();
+          };
+          navigator.serviceWorker.addEventListener("message", handler);
+          
+          // Trigger the SW to download the specific list we found
+          reg.active?.postMessage({ 
+            type: "download-city-pack", 
+            slug: id,
+            urls: allUrls 
+          });
+        });
+
+        await done;
+        setProgress(100);
+        setState("ready");
+        await markDownloaded(id, lastUpdated);
+        return;
+      }
+
+      // 3. FALLBACK PHASE: Manual caching if no SW registration found
+      const cache = await caches.open(cityCacheName(id));
+      
+      // Cache the clones we already have from the discovery phase
+      await cache.put(new Request(pageUrl), new Response(html, { headers: docRes.headers }));
+      await cache.put(new Request(apiUrl), new Response(JSON.stringify(apiData), { headers: apiDataRes.headers }));
+
+      const total = allUrls.length;
+      let completed = 2; // HTML and API are done
+
+      for (const u of allUrls) {
         if (u === apiUrl || u === pageUrl) continue;
         try {
           await fetchAndCache(cache, u);
         } catch (e) {
-          throw new Error(`Failed to cache ${u}: ${e instanceof Error ? e.message : String(e)}`);
+          console.warn(`[Sync] Skipping failed asset: ${u}`);
         }
-        done++;
-        setProgress(Math.round((done / total) * 100));
+        completed++;
+        setProgress(Math.round((completed / total) * 100));
       }
 
       setProgress(100);
       setState("ready");
-      if (lastUpdated) await markDownloaded(id, lastUpdated);
+      await markDownloaded(id, lastUpdated);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setState("error");
@@ -147,13 +156,12 @@ if (reg?.active) {
       const base = window.location.origin;
       const pageUrl = `${base}/city/${encodeURIComponent(id)}`;
       const apiUrl = `${base}/api/cities/${encodeURIComponent(id)}`;
-      const dataUrl = `${base}/api/download-city?slug=${encodeURIComponent(id)}`;
-      const [page, api, data] = await Promise.all([
+      
+      const [page, api] = await Promise.all([
         cache.match(pageUrl),
         cache.match(apiUrl),
-        cache.match(dataUrl),
       ]);
-      return !!(page && (api || data));
+      return !!(page && api);
     } catch {
       return false;
     }

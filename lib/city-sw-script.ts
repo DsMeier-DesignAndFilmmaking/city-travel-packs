@@ -55,7 +55,11 @@ self.addEventListener('fetch', function (event) {
 
   var path = url.pathname;
   var isInCityScope = path === '${cityPath}' || path.indexOf('${cityPathPrefix}') === 0;
-  if (!isInCityScope) return;
+  
+  // Also allow caching of static assets if they are requested while in this city's scope
+  var isStaticAsset = path.indexOf('/_next/static/') === 0;
+
+  if (!isInCityScope && !isStaticAsset) return;
 
   event.respondWith(
     fetch(event.request)
@@ -82,19 +86,36 @@ self.addEventListener('message', function (event) {
   if (slug !== CITY) return;
   var source = event.source;
   if (!source) return;
+
+  // New logic: Use provided URLs (assets) or fallback to basic URLs
+  var urlsToCache = event.data.urls || [PAGE_URL, DATA_URL];
+
   event.waitUntil(
     caches.open(CACHE_NAME).then(function (cache) {
-      return Promise.all([
-        fetch(PAGE_URL).then(function (res) {
-          if (res && res.ok) return cache.put(PAGE_URL, res);
-        }),
-        fetch(DATA_URL).then(function (res) {
-          if (res && res.ok) return cache.put(DATA_URL, res);
+      return Promise.all(
+        urlsToCache.map(function (url) {
+          // Use { mode: 'no-cors' } only if needed, but for same-origin Next.js assets, 
+          // a standard fetch is preferred to ensure we get a valid status back.
+          return fetch(url).then(function (res) {
+            if (res && res.ok) {
+              return cache.put(url, res);
+            }
+          }).catch(function (err) {
+            console.warn('[SW] Failed to fetch and cache:', url, err);
+          });
         })
-      ]).then(function () {
-        try { source.postMessage({ type: 'download-city-pack-done', slug: slug }); } catch (e) {}
+      ).then(function () {
+        try {
+          source.postMessage({ type: 'download-city-pack-done', slug: slug });
+        } catch (e) {}
       }).catch(function (err) {
-        try { source.postMessage({ type: 'download-city-pack-done', slug: slug, error: String(err) }); } catch (e) {}
+        try {
+          source.postMessage({ 
+            type: 'download-city-pack-done', 
+            slug: slug, 
+            error: String(err) 
+          });
+        } catch (e) {}
       });
     })
   );
