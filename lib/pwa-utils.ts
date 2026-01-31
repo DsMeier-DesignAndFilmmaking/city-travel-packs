@@ -23,32 +23,34 @@ export function isGlobalManifestHref(href: string): boolean {
 export function ensureCityManifestWins(cityId: string): void {
   if (typeof document === "undefined") return;
 
-  // This API route must return a JSON with:
-  // "start_url": "/city/[cityId]?source=pwa",
-  // "scope": "/city/[cityId]/"
   const cityHref = `/api/manifest/${encodeURIComponent(cityId)}.json`;
+  
+  // 1. Find the existing manifest link
+  let link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
 
-  // 1. Clean up ALL existing manifest links to avoid browser confusion
-  document.querySelectorAll<HTMLLinkElement>('link[rel="manifest"]').forEach((link) => {
-    link.remove();
-  });
+  if (link) {
+    // 2. If it's already set to this city, do nothing
+    if (link.getAttribute('href') === cityHref) return;
 
-  // 2. Inject the fresh city manifest
-  const link = document.createElement("link");
-  link.rel = "manifest";
-  link.id = "pwa-manifest"; // Unique ID for easier debugging
-  link.href = cityHref;
-  document.head.appendChild(link);
-
-  // 3. (Optional but recommended) iOS Meta Tag update
-  // Ensures that even if Safari ignores the manifest, it stays within the city scope.
-  let metaAppTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-  if (!metaAppTitle) {
-    metaAppTitle = document.createElement('meta');
-    (metaAppTitle as any).name = "apple-mobile-web-app-title";
-    document.head.appendChild(metaAppTitle);
+    // 3. Update the href instead of removing/re-adding
+    // This prevents the "removeChild" error because the node remains in the DOM
+    link.setAttribute('href', cityHref);
+  } else {
+    // 4. If no manifest exists at all, create it
+    link = document.createElement("link");
+    link.rel = "manifest";
+    link.href = cityHref;
+    document.head.appendChild(link);
   }
-  metaAppTitle.setAttribute("content", `Pack: ${cityId}`);
+
+  // 5. Cleanup: If there are accidentally multiple manifests, 
+  // only remove the ones that aren't the one we just updated.
+  const allManifests = document.querySelectorAll<HTMLLinkElement>('link[rel="manifest"]');
+  if (allManifests.length > 1) {
+    allManifests.forEach((m) => {
+      if (m !== link) m.remove();
+    });
+  }
 }
 
 /**
