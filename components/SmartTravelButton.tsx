@@ -7,6 +7,7 @@ import { useIsStandalone } from "@/hooks/useIsStandalone";
 import { useCityInstallReady } from "@/hooks/useCityInstallReady";
 import { CoachMarkOverlay } from "@/components/CoachMarkOverlay";
 import { AddToHomeScreenOverlay } from "@/components/AddToHomeScreenOverlay";
+import { updateManifest } from "@/lib/pwa-utils";
 
 /**
  * Detects if the user is on an iOS device.
@@ -18,7 +19,6 @@ function isIOS(): boolean {
 
 /**
  * Simple check for mobile screens (typically < 768px).
- * This prevents mobile-specific "Tap Share" instructions from appearing on Desktop.
  */
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -32,8 +32,6 @@ function useIsMobile() {
 
   return isMobile;
 }
-
-import { updateManifest } from "@/lib/pwa-utils";
 
 export interface SmartTravelButtonProps {
   id: string;
@@ -81,7 +79,7 @@ export function SmartTravelButton({
     if (state === "ready" || ready) void recheckInstallReady();
   }, [state, ready, recheckInstallReady]);
 
-  // City page: always use city manifest so Add to Home Screen uses city start_url (Step 11).
+  // Ensure city manifest is active if this city is ready/cached
   useEffect(() => {
     if ((state === "ready" || ready) && id) {
       updateManifest(id);
@@ -109,10 +107,14 @@ export function SmartTravelButton({
     const syncComplete = state === "ready" || ready;
     const isDone = syncComplete && isCityInstallReady;
 
+    // 1. If we are already inside the installed PWA, do nothing on click
     if (isDone && isStandalone) return;
 
-    // Trigger Coach Marks ONLY on Mobile when install-ready (manifest + SW + cache).
+    // 2. If it's ready but not yet installed (Web Browser mode)
     if (isDone && !isStandalone) {
+      // Force manifest update to this city so the "Add to Home Screen" prompt uses correct metadata
+      updateManifest(id);
+      
       if (isMobile) {
         setCoachOpen(true);
       } else {
@@ -121,6 +123,7 @@ export function SmartTravelButton({
       return;
     }
 
+    // 3. Not ready/not downloaded: Trigger the sync
     updateManifest(id);
     setReady(false);
     sync(id, { onSyncFailed: registerSync });
@@ -130,12 +133,16 @@ export function SmartTravelButton({
   const syncDone = state === "ready" || ready;
   const done = syncDone && isCityInstallReady;
   const failed = state === "error";
-  const disabled = checking || syncing;
+  
+  // FIX: Only disable during active background tasks (checking or syncing).
+  // We keep it enabled when 'done' so the user can click to see install instructions.
+  const disabled = checking || syncing || removing;
+  
   const isPremiumReady = done && !checking && !syncing;
 
   const premiumReadyClass =
     isPremiumReady &&
-    "bg-gradient-to-r from-[#C9A227] via-[#b8860b] to-[#a67c1a] text-[#0f172a] shadow-[0_4px_20px_rgba(201,162,39,0.35)] hover:shadow-[0_6px_24px_rgba(201,162,39,0.4)] active:scale-[0.99]";
+    "bg-gradient-to-r from-[#C9A227] via-[#b8860b] to-[#a67c1a] text-[#0f172a] shadow-[0_4px_20px_rgba(201,162,39,0.35)] hover:shadow-[0_6px_24px_rgba(201,162,39,0.4)] active:scale-[0.99] cursor-pointer opacity-100";
 
   const doneAndStandalone = done && isStandalone;
 
@@ -178,7 +185,7 @@ export function SmartTravelButton({
             type="button"
             onClick={handleClick}
             disabled={disabled}
-            className={`inline-flex w-full items-center justify-center gap-2 rounded-xl py-3.5 font-semibold transition-all duration-300 disabled:opacity-70 ${syncing ? "animate-pulse" : ""} ${premiumReadyClass || ""} ${className}`}
+            className={`inline-flex w-full items-center justify-center gap-2 rounded-xl py-3.5 font-semibold transition-all duration-300 ${syncing ? "animate-pulse" : ""} ${premiumReadyClass || ""} ${className} ${disabled ? "opacity-70 cursor-not-allowed" : "cursor-pointer"}`}
             style={isPremiumReady ? undefined : style}
           >
             {checking && (
@@ -203,7 +210,7 @@ export function SmartTravelButton({
             )}
             {!checking && !syncing && done && (
               <>
-                <span className="text-emerald-400">✅</span>
+                <span className="text-[#0f172a]">✅</span>
                 <span>{isMobile ? "Ready: Add to Home Screen" : "Ready for Offline"}</span>
               </>
             )}
@@ -234,10 +241,6 @@ export function SmartTravelButton({
         {error && <p className="text-center text-xs text-red-400">{error}</p>}
       </div>
 
-      {/* Instructional Overlays Logic:
-          - Only show if NOT in standalone mode
-          - Only show if ON a mobile device
-      */}
       {!isStandalone && isMobile && (
         <>
           {isIOS() ? (
