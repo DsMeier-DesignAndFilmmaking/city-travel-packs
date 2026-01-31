@@ -27,27 +27,32 @@ const CITY_MANIFEST_LINK_ID = "city-travel-pack-manifest";
  */
 function useCityManifest(slug: string) {
   useEffect(() => {
-    const manifestUrl = `/api/manifest/${encodeURIComponent(slug)}.json`;
+    const manifestUrl = `/api/manifest/${encodeURIComponent(slug)}`;
 
+    // Remove ALL existing manifests (global + stale city)
     document
       .querySelectorAll<HTMLLinkElement>('link[rel="manifest"]')
       .forEach((el) => el.remove());
 
+    // Force browser to see this as a "new" manifest
     const link = document.createElement("link");
     link.rel = "manifest";
-    link.href = manifestUrl;
+    link.href = `${manifestUrl}?v=${Date.now()}`;
     link.id = CITY_MANIFEST_LINK_ID;
+
     document.head.appendChild(link);
 
+    // Extra insurance for Chrome/Safari
     ensureCityManifestWins(slug);
-    const t = setTimeout(() => ensureCityManifestWins(slug), 100);
+    const retry = setTimeout(() => ensureCityManifestWins(slug), 100);
 
     return () => {
-      clearTimeout(t);
+      clearTimeout(retry);
       document.getElementById(CITY_MANIFEST_LINK_ID)?.remove();
     };
   }, [slug]);
 }
+
 
 /**
  * Dev-only logging for validating install state.
