@@ -48,7 +48,8 @@ function useCityManifest(slug: string) {
 
     return () => {
       clearTimeout(retry);
-      document.getElementById(CITY_MANIFEST_LINK_ID)?.remove();
+      const el = document.getElementById(CITY_MANIFEST_LINK_ID);
+      if (el?.parentNode) el.parentNode.removeChild(el);
     };
   }, [slug]);
 }
@@ -145,7 +146,8 @@ const CITY_SW_CACHE_NAME_PREFIX = "city-pack-";
 const CITY_SW_CACHE_NAME_SUFFIX = "-v1";
 
 /**
- * Register city-scoped service worker.
+ * Register city-scoped service worker and wait for activation (STEP C).
+ * Only when SW is active can "Ready: Add to Home Screen" show; logs when ready for install.
  */
 function useCitySwRegistration(slug: string) {
   useEffect(() => {
@@ -155,14 +157,28 @@ function useCitySwRegistration(slug: string) {
     const scope = `/city/${encodeURIComponent(slug)}/`;
     const cacheName = `${CITY_SW_CACHE_NAME_PREFIX}${slug}${CITY_SW_CACHE_NAME_SUFFIX}`;
 
+    const onActive = () => {
+      console.log("[City SW] active and ready for install", { scope, cacheName });
+    };
+
     navigator.serviceWorker
       .register(swUrl, { scope })
       .then((reg) => {
-        console.log("[City SW] Registered", {
-          scope: reg.scope,
-          activeSW: reg.active?.scriptURL ?? "(installing/waiting)",
-          cacheName,
-        });
+        if (reg.active) {
+          onActive();
+          return;
+        }
+        const worker = reg.installing ?? reg.waiting;
+        if (worker) {
+          const onStateChange = () => {
+            if (worker.state === "activated") {
+              onActive();
+              worker.removeEventListener("statechange", onStateChange);
+            }
+          };
+          worker.addEventListener("statechange", onStateChange);
+          if (worker.state === "activated") onActive();
+        }
       })
       .catch((err) => {
         console.error("[City SW] Registration failed", err);

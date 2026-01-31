@@ -4,9 +4,9 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 
 /**
- * Registers the global PWA service worker ONLY on non-city routes (Step 12).
+ * Registers the global PWA service worker ONLY on non-city routes and only in production (STEP A).
  * City routes opt-out of global PWA identity and use the city-scoped SW only.
- * Does not break existing offline behavior on home, list, etc.
+ * Ensures no global SW conflicts with city-specific SWs.
  */
 export function ServiceWorkerRegistrar() {
   const pathname = usePathname();
@@ -14,6 +14,7 @@ export function ServiceWorkerRegistrar() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
     if (pathname?.startsWith("/city/")) return;
+    if (process.env.NODE_ENV !== "production") return;
 
     navigator.serviceWorker
       .register("/sw.js", { scope: "/" })
