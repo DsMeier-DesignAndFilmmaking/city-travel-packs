@@ -101,14 +101,23 @@ export function useCityInstallReady(cityId: string): UseCityInstallReadyResult {
     recheck().then(() => {
       if (cancelled) return;
     });
+
+    const onCitySwActivated = (e: Event) => {
+      const detail = (e as CustomEvent<{ slug: string }>).detail;
+      if (detail?.slug === cityId && !cancelled) void recheck();
+    };
+    window.addEventListener("city-sw-activated", onCitySwActivated);
+
     const interval = setInterval(() => {
       if (cancelled) return;
       checkCityInstallReady(cityId).then((ready) => {
         if (!cancelled) setIsCityInstallReady(ready);
       });
     }, 1500);
+
     return () => {
       cancelled = true;
+      window.removeEventListener("city-sw-activated", onCitySwActivated);
       clearInterval(interval);
     };
   }, [cityId, recheck]);

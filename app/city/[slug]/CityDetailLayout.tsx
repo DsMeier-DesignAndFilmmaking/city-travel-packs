@@ -24,36 +24,36 @@ const CITY_MANIFEST_LINK_ID = "city-travel-pack-manifest";
 
 /**
  * Inject city-specific manifest and ensure it wins over any global manifest.
+ * A. No query params on manifest link href so start_url / scope stay clean for beforeinstallprompt.
+ * A. Safe cleanup on unmount/route change with null checks to avoid removeChild errors.
  */
 function useCityManifest(slug: string) {
   useEffect(() => {
     const manifestUrl = `/api/manifest/${encodeURIComponent(slug)}`;
 
-    // Remove ALL existing manifests (global + stale city)
-    document
-      .querySelectorAll<HTMLLinkElement>('link[rel="manifest"]')
-      .forEach((el) => el.remove());
+    // Remove ALL existing manifests safely (null-check each before removeChild)
+    const existing = document.querySelectorAll<HTMLLinkElement>('link[rel="manifest"]');
+    existing.forEach((el) => {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    });
 
-    // Force browser to see this as a "new" manifest
+    // Manifest link without ?v= so Chrome beforeinstallprompt sees stable manifest/start_url
     const link = document.createElement("link");
     link.rel = "manifest";
-    link.href = `${manifestUrl}?v=${Date.now()}`;
+    link.href = manifestUrl;
     link.id = CITY_MANIFEST_LINK_ID;
+    if (document.head) document.head.appendChild(link);
 
-    document.head.appendChild(link);
-
-    // Extra insurance for Chrome/Safari
     ensureCityManifestWins(slug);
     const retry = setTimeout(() => ensureCityManifestWins(slug), 100);
 
     return () => {
       clearTimeout(retry);
       const el = document.getElementById(CITY_MANIFEST_LINK_ID);
-      if (el?.parentNode) el.parentNode.removeChild(el);
+      if (el && el.parentNode) el.parentNode.removeChild(el);
     };
   }, [slug]);
 }
-
 
 /**
  * Dev-only logging for validating install state.
@@ -127,8 +127,8 @@ function useStandaloneOfflineLock(slug: string) {
     document.addEventListener("click", onClick, true);
 
     return () => {
-      window.removeEventListener("popstate", onPopstate);
-      document.removeEventListener("click", onClick, true);
+      if (window) window.removeEventListener("popstate", onPopstate);
+      if (document) document.removeEventListener("click", onClick, true);
     };
   }, [isLocked, slug, router]);
 
@@ -146,8 +146,7 @@ const CITY_SW_CACHE_NAME_PREFIX = "city-pack-";
 const CITY_SW_CACHE_NAME_SUFFIX = "-v1";
 
 /**
- * Register city-scoped service worker and wait for activation (STEP C).
- * Only when SW is active can "Ready: Add to Home Screen" show; logs when ready for install.
+ * Register city-scoped service worker and wait for activation.
  */
 function useCitySwRegistration(slug: string) {
   useEffect(() => {
@@ -159,6 +158,9 @@ function useCitySwRegistration(slug: string) {
 
     const onActive = () => {
       console.log("[City SW] active and ready for install", { scope, cacheName });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("city-sw-activated", { detail: { slug } }));
+      }
     };
 
     navigator.serviceWorker
@@ -200,6 +202,16 @@ export function CityDetailLayout({ slug, city, children }: CityDetailLayoutProps
   useCitySwRegistration(slug);
   useCityPwaVerificationChecklist(slug);
 
+  const headerContent = (
+    <div className="min-w-0 flex-1">
+      <h1 className="truncate font-semibold text-white">{city.name}</h1>
+      <p className="flex items-center gap-1 truncate text-sm text-zinc-400">
+        <MapPin className="size-3.5" />
+        {city.country}
+      </p>
+    </div>
+  );
+
   if (isStandalone) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-[#0f172a] via-[#1e293b] to-[#0f172a] pb-8">
@@ -212,13 +224,7 @@ export function CityDetailLayout({ slug, city, children }: CityDetailLayoutProps
             >
               <X className="size-5" />
             </Link>
-            <div className="min-w-0 flex-1">
-              <h1 className="truncate font-semibold text-white">{city.name}</h1>
-              <p className="flex items-center gap-1 truncate text-sm text-zinc-400">
-                <MapPin className="size-3.5" />
-                {city.country}
-              </p>
-            </div>
+            {headerContent}
           </div>
         </header>
         {children}
@@ -237,13 +243,7 @@ export function CityDetailLayout({ slug, city, children }: CityDetailLayoutProps
           >
             ←
           </Link>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate font-semibold text-white">{city.name}</h1>
-            <p className="flex items-center gap-1 truncate text-sm text-zinc-400">
-              <MapPin className="size-3.5" />
-              {city.country}
-            </p>
-          </div>
+          {headerContent}
         </div>
       </header>
 
