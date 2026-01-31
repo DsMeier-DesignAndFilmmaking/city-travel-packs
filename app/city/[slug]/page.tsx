@@ -6,21 +6,20 @@ import { CityDetailLayout } from "./CityDetailLayout";
 import { getCityBySlug, getAllCitySlugs } from "@/lib/data/cities";
 import type { TransitHack, EtiquetteItem, EmergencyInfo } from "@/lib/types/city";
 
+
 export function generateStaticParams() {
   return getAllCitySlugs().map((slug) => ({ slug }));
 }
 
-export async function generateMetadata({
-  params,
-}: {
+type Props = {
   params: Promise<{ slug: string }>;
-}): Promise<Metadata> {
+};
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const city = getCityBySlug(slug);
-  if (!city) return { title: "City Not Found" };
+  
   return {
-    title: `${city.name} – City Travel Pack`,
-    description: `Transit hacks, local etiquette, and emergency info for ${city.name}, ${city.country}.`,
+    manifest: `/api/manifest/${slug}`,
   };
 }
 

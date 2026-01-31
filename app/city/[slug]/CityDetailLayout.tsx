@@ -23,30 +23,20 @@ const CITY_MANIFEST_LINK_ID = "city-travel-pack-manifest";
 function useCityManifest(slug: string) {
   useEffect(() => {
     const manifestUrl = `/api/manifest/${encodeURIComponent(slug)}`;
-
-    const existing = document.querySelectorAll<HTMLLinkElement>('link[rel="manifest"]');
-    existing.forEach((el) => {
-      if (el && el.parentNode) {
-        el.parentNode.removeChild(el);
-      }
-    });
-
+    
+    // 1. Add the link
     const link = document.createElement("link");
     link.rel = "manifest";
     link.href = manifestUrl;
     link.id = CITY_MANIFEST_LINK_ID;
-
-    if (document.head) {
-      document.head.appendChild(link);
-    }
+    document.head.appendChild(link);
 
     ensureCityManifestWins(slug);
 
-    const retry = setTimeout(() => ensureCityManifestWins(slug), 100);
-
     return () => {
-      clearTimeout(retry);
+      // 2. Defensive Cleanup
       const el = document.getElementById(CITY_MANIFEST_LINK_ID);
+      // Check if element exists AND has a parent before removing
       if (el && el.parentNode) {
         el.parentNode.removeChild(el);
       }
@@ -57,9 +47,10 @@ function useCityManifest(slug: string) {
 /**
  * Handle "back" action: Go directly to the homepage.
  */
-const handleBackClick = (e: React.MouseEvent, router: any) => {
-  e.preventDefault();
-  router.push("/"); // Navigate directly to the homepage
+const handleBackClick = (e: React.MouseEvent) => {
+  // If you just want to go home, you don't actually need 
+  // e.preventDefault() + router.push if using <Link>. 
+  // Let Next.js handle it unless you have custom logic.
 };
 
 interface CityDetailLayoutProps {
@@ -91,14 +82,13 @@ export function CityDetailLayout({ slug, city, children }: CityDetailLayoutProps
       <div className="min-h-screen bg-gradient-to-b from-[#0f172a] via-[#1e293b] to-[#0f172a] pb-8">
         <header className="sticky top-0 z-10 border-b border-white/10 bg-[#0f172a]/80 backdrop-blur-xl">
           <div className="mx-auto flex max-w-xl items-center gap-3 px-4 py-3">
-            <Link
-              href="/"
-              aria-label="Close pack"
-              onClick={(e) => handleBackClick(e, router)}
-              className="flex size-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white"
-            >
-              <X className="size-5" />
-            </Link>
+          <Link
+            href="/"
+            className="..."
+            // Remove the onClick entirely if you don't have special logic to run
+          >
+            ←
+          </Link>
             {headerContent}
           </div>
         </header>
@@ -111,14 +101,13 @@ export function CityDetailLayout({ slug, city, children }: CityDetailLayoutProps
     <div className="min-h-screen bg-gradient-to-b from-[#0f172a] via-[#1e293b] to-[#0f172a] pb-24">
       <header className="sticky top-0 z-10 border-b border-white/10 bg-[#0f172a]/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-xl items-center gap-3 px-4 py-3">
-          <Link
-            href="/"
-            aria-label="Back"
-            className="flex size-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white"
-            onClick={(e) => handleBackClick(e, router)}
-          >
-            ←
-          </Link>
+        <Link
+          href="/"
+          className="..."
+          // Remove the onClick entirely if you don't have special logic to run
+        >
+          ←
+        </Link>
 
           {headerContent}
         </div>
