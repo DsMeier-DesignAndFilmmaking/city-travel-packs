@@ -4,29 +4,18 @@ import { useCallback, useEffect, useState } from "react";
 import { Download, Check, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useIsStandalone } from "@/hooks/useIsStandalone";
-import { updateManifest } from "@/lib/pwa-utils";
-
-// Overlays
-import { CoachMarkOverlay } from "@/components/CoachMarkOverlay";
-import { AddToHomeScreenOverlay } from "@/components/AddToHomeScreenOverlay";
 
 interface SyncButtonProps {
+  /** City id (slug). */
   id: string;
+  /** City display name. */
   cityName?: string;
   className?: string;
   style?: React.CSSProperties;
 }
 
 /**
- * Detects if the user is on an iOS device.
- */
-function isIOS(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return /iPhone|iPad|iPod/i.test(navigator.userAgent);
-}
-
-/**
- * Mobile detection hook.
+ * Mobile detection hook to hide "Add to Home Screen" instructions on Desktop.
  */
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -53,7 +42,6 @@ export function SyncButton({
   
   const [ready, setReady] = useState(false);
   const [removing, setRemoving] = useState(false);
-  const [coachOpen, setCoachOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,46 +60,31 @@ export function SyncButton({
     if (sw) sw.postMessage({ type: "REGISTER_SYNC", id });
   }, [id]);
 
-  const handleCheckForUpdates = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleCheckForUpdates = useCallback(() => {
     setReady(false);
     sync(id, { onSyncFailed: registerSync });
-  };
+  }, [id, sync, registerSync]);
 
-  const handleRemoveOffline = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleRemoveOffline = useCallback(async () => {
     setRemoving(true);
     await removeOfflineData(id);
     setReady(false);
     setRemoving(false);
-  };
+  }, [id, removeOfflineData]);
 
-  const handleClick = (e: React.MouseEvent) => {
-    // PREVENT BUBBLING: This stops the parent Link from navigating
-    e.preventDefault();
-    e.stopPropagation();
-
+  const handleClick = useCallback(() => {
     const done = state === "ready" || ready;
     
-    // 1. If installed and done, click is ignored (or could open the pack)
+    // If installed and done, we don't handle clicks here (handled by View A)
     if (done && isStandalone) return;
 
-    // 2. If done but in browser, trigger the installation overlay
-    if (done && !isStandalone) {
-      updateManifest(id);
-      if (isMobile) {
-        setCoachOpen(true);
-      }
-      return;
-    }
+    // If done but in browser, clicking does nothing or could trigger your 
+    // instructional overlay if you choose to import it here as well.
+    if (done && !isStandalone) return;
 
-    // 3. Start download process
     if (state !== "syncing") setReady(false);
-    updateManifest(id);
     sync(id, { onSyncFailed: registerSync });
-  };
+  }, [id, sync, state, registerSync, ready, isStandalone]);
 
   const syncing = state === "syncing";
   const done = state === "ready" || ready;
@@ -159,7 +132,7 @@ export function SyncButton({
           type="button"
           onClick={handleClick}
           disabled={syncing}
-          className={`${className} cursor-pointer`}
+          className={className}
           style={style}
           aria-busy={syncing}
         >
@@ -171,7 +144,9 @@ export function SyncButton({
           ) : done ? (
             <>
               <Check className="size-5 shrink-0 text-emerald-500" />
-              <span>Offline Ready</span>
+              <span>
+                {isMobile ? "Offline Ready" : "Offline Ready"}
+              </span>
             </>
           ) : failed ? (
             <>
@@ -187,10 +162,10 @@ export function SyncButton({
         </button>
       )}
 
-      {/* Helper Text */}
+      {/* Instructional Helper Text: Only show on Mobile */}
       {done && !isStandalone && isMobile && (
-        <p className="text-center text-[10px] leading-tight text-zinc-400">
-          Tap to add to Home Screen
+        <p className="text-center text-[10px] leading-tight text-zinc-400" role="status">
+          Tap to add to Home Screen for offline access.
         </p>
       )}
 
@@ -204,31 +179,6 @@ export function SyncButton({
       )}
       
       {error && <p className="text-xs text-red-400">{error}</p>}
-
-      {/* Overlays: Stop propagation here as well to be safe */}
-      {/* Overlays: Use Portal-like positioning */}
-      {!isStandalone && isMobile && (
-        <div 
-          onClick={(e) => e.stopPropagation()}
-          className="fixed inset-0 z-[9999] pointer-events-none" 
-        >
-          {/* Re-enable pointer events for the actual children */}
-          <div className="pointer-events-auto h-full w-full">
-            {isIOS() ? (
-              <AddToHomeScreenOverlay
-                open={coachOpen}
-                onClose={() => setCoachOpen(false)}
-                cityName={cityName || "City"}
-              />
-            ) : (
-              <CoachMarkOverlay 
-                open={coachOpen} 
-                onClose={() => setCoachOpen(false)} 
-              />
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
