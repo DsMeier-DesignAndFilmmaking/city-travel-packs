@@ -76,30 +76,35 @@ self.addEventListener('fetch', function (event) {
       try {
         const cache = await caches.open(CACHE_NAME);
 
-        // 1. FUZZY CACHE MATCH (Best for Airplane Mode)
-        // We look for: 1. The exact request, 2. /city/tokyo, 3. /city/tokyo/
-        const urlsToTry = [
-          event.request,
-          PAGE_URL,
-          PAGE_URL + '/'
-        ];
+        // 1. NAVIGATION CATCH-ALL (The "Home Screen" Fix)
+        // If the user is launching the app or clicking a link to the city,
+        // we serve the cached HTML root immediately. This bypasses any 
+        // trailing slash or query param issues from the manifest start_url.
+        if (event.request.mode === 'navigate') {
+          const navMatch = await cache.match(PAGE_URL, { ignoreSearch: true }) || 
+                           await cache.match(PAGE_URL + '/', { ignoreSearch: true });
+          if (navMatch) return navMatch;
+        }
 
-        for (const target of urlsToTry) {
+        // 2. STANDARD FUZZY MATCH (For Assets & Data)
+        // Check for exact request, then the non-slashed page, then the slashed page.
+        const targets = [event.request, PAGE_URL, PAGE_URL + '/'];
+        for (const target of targets) {
           const match = await cache.match(target, { ignoreSearch: true });
           if (match) return match;
         }
 
-        // 2. PRELOAD FALLBACK
+        // 3. PRELOAD FALLBACK
         if (event.preloadResponse) {
           const preRes = await event.preloadResponse;
           if (preRes) return preRes;
         }
 
-        // 3. NETWORK ATTEMPT
+        // 4. NETWORK ATTEMPT
         try {
           const networkRes = await fetch(event.request);
           if (networkRes && networkRes.ok) {
-            // Cache static assets (JS/CSS) on the fly to improve future loads
+            // Cache static assets (JS/CSS) on the fly to help performance
             if (isNextStatic || isNextData) {
               cache.put(event.request, networkRes.clone());
             }
@@ -107,27 +112,26 @@ self.addEventListener('fetch', function (event) {
           }
           return networkRes;
         } catch (fetchErr) {
-          // 4. AIRPLANE MODE EMERGENCY FALLBACK
-          // If we are navigating to a city page and everything else failed,
-          // try one last time to pull the root PAGE_URL from the cache.
-          if (event.request.mode === 'navigate' || isInCityScope) {
-            const fallback = await cache.match(PAGE_URL, { ignoreSearch: true }) || 
-                             await cache.match(PAGE_URL + '/', { ignoreSearch: true });
-            if (fallback) return fallback;
-          }
+          // 5. FINAL AIRPLANE MODE FALLBACK
+          // One last attempt to find anything in the cache for this request
+          const lastDitch = await cache.match(event.request, { ignoreSearch: true });
+          if (lastDitch) return lastDitch;
 
-          // 5. FINAL ERROR RESPONSE
-          return new Response("Offline Content Unavailable", {
-            status: 503,
-            headers: { 'Content-Type': 'text/plain' }
-          });
+          // If navigation failed and we are truly offline without cache
+          if (event.request.mode === 'navigate') {
+            return new Response("Offline Content Unavailable", {
+              status: 503,
+              headers: { 'Content-Type': 'text/html' }
+            });
+          }
+          
+          return new Response("Offline Resource Missing", { status: 404 });
         }
       } catch (err) {
         return new Response("Service Worker Error", { status: 500 });
       }
     })()
   );
-});
 
 self.addEventListener('message', function (event) {
   if (!event.data || event.data.type !== 'download-city-pack') return;

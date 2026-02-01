@@ -33,10 +33,12 @@ export async function GET(
     ],
   };
 
-  return NextResponse.json(manifest, {
-    headers: {
-      "Content-Type": "application/manifest+json",
-      "Cache-Control": "public, max-age=86400",
-    },
-  });
+// inside /api/manifest/[city]/route.ts
+return NextResponse.json(manifest, {
+  headers: {
+    "Content-Type": "application/manifest+json",
+    // Lower max-age to 1 hour so changes propagate during testing
+    "Cache-Control": "public, max-age=3600", 
+  },
+});
 }

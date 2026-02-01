@@ -91,8 +91,9 @@ export function useOfflineSync(): UseOfflineSyncResult {
       const manifestAssets = new Set<string>();
       manifestAssets.add(manifestUrl);
       
+      let manifestData: any = null;
       if (manifestRes.ok) {
-        const manifestData = await manifestRes.json();
+        manifestData = await manifestRes.json();
         if (Array.isArray(manifestData.icons)) {
           manifestData.icons.forEach((icon: any) => {
             if (icon.src) manifestAssets.add(new URL(icon.src, base).href);
@@ -118,26 +119,31 @@ export function useOfflineSync(): UseOfflineSyncResult {
         ...fromJson
       ]));
 
-      // 3. PRE-CACHE ENTRY POINTS (CRITICAL FIX)
-      // We manually put the HTML and JSON in the cache before delegation.
-      // This ensures the Debugger turns green immediately.
+      // 3. PRE-CACHE ENTRY POINTS (MANDATORY FOR STANDALONE)
+      // This ensures the vault is populated before the SW starts or the user flips to airplane mode.
       const cache = await caches.open(cityCacheName(id));
       
-      const pageResponse = new Response(html, { 
-        headers: { "Content-Type": "text/html" } 
-      });
-      const apiResponse = new Response(JSON.stringify(apiData), { 
-        headers: { "Content-Type": "application/json" } 
+      const pageResponse = () => new Response(html, { 
+        headers: { "Content-Type": "text/html; charset=utf-8" } 
       });
 
       await Promise.all([
-        cache.put(new Request(pageUrl), pageResponse.clone()),
-        cache.put(new Request(pageUrlWithSlash), pageResponse.clone()),
-        cache.put(new Request(apiUrl), apiResponse)
+        // Cache both variants so the manifest "start_url" always finds a match
+        cache.put(new Request(pageUrl), pageResponse()),
+        cache.put(new Request(pageUrlWithSlash), pageResponse()),
+        
+        // Cache API data
+        cache.put(new Request(apiUrl), new Response(JSON.stringify(apiData), { 
+          headers: { "Content-Type": "application/json" } 
+        })),
+
+        // Cache the manifest itself (so the browser can verify the app identity offline)
+        manifestData ? cache.put(new Request(manifestUrl), new Response(JSON.stringify(manifestData), {
+          headers: { "Content-Type": "application/manifest+json" }
+        })) : Promise.resolve()
       ]);
       
-      // Update progress slightly since entry points are done
-      setProgress(5);
+      setProgress(10);
 
       // 4. DELEGATION TO SERVICE WORKER
       const reg = await getCitySwRegistration(id);
@@ -166,13 +172,12 @@ export function useOfflineSync(): UseOfflineSyncResult {
         return;
       }
 
-      // 5. FALLBACK PHASE: Manual caching for the rest of assets
+      // 5. FALLBACK PHASE: Manual caching
       const total = allUrls.length;
-      let completed = 3;
+      let completed = 5; // Starting higher due to pre-cached items
 
       for (const u of allUrls) {
-        // Skip entry points we already manually cached
-        if (u === apiUrl || u === pageUrl || u === pageUrlWithSlash) continue;
+        if (u === apiUrl || u === pageUrl || u === pageUrlWithSlash || u === manifestUrl) continue;
         
         try {
           await fetchAndCache(cache, u);
@@ -199,8 +204,10 @@ export function useOfflineSync(): UseOfflineSyncResult {
       const cache = await caches.open(cityCacheName(id));
       const base = window.location.origin;
       const pageUrl = `${base}/city/${encodeURIComponent(id)}`;
-      const page = await cache.match(pageUrl, { ignoreSearch: true });
-      return !!page;
+      // Check for either variant
+      const match = await cache.match(pageUrl, { ignoreSearch: true }) || 
+                    await cache.match(pageUrl + '/', { ignoreSearch: true });
+      return !!match;
     } catch {
       return false;
     }
