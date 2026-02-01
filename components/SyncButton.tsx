@@ -47,35 +47,28 @@ export function SyncButton({
   const [removing, setRemoving] = useState(false);
   const [coachOpen, setCoachOpen] = useState(false);
 
+  // Check the actual cache storage for this specific environment
   useEffect(() => {
     let cancelled = false;
-    isReady(id).then((ok) => {
+    const checkCache = async () => {
+      const ok = await isReady(id);
       if (!cancelled) setReady(ok);
-    });
-    return () => { cancelled = true; };
+    };
+    checkCache();
+    // Re-check periodically or when state changes
+    const interval = setInterval(checkCache, 3000);
+    return () => { 
+      cancelled = true; 
+      clearInterval(interval);
+    };
   }, [id, isReady, state]);
 
-  useEffect(() => {
-    if (state === "ready") setReady(true);
-  }, [state]);
-
-  /**
-   * CRITICAL: Register the City-Specific Service Worker with a trailing slash scope.
-   * This ensures the SW intercepts requests for /city/[id]/ in Airplane Mode.
-   */
   const ensureCitySw = useCallback(async () => {
     if (typeof navigator === "undefined" || !navigator.serviceWorker) return null;
-    
-    // UPDATED: Now using the root-level path handled by our rewrite
     const swUrl = `/sw-${id}.js`; 
     const scope = `/city/${id}/`; 
-    
     try {
       const reg = await navigator.serviceWorker.register(swUrl, { scope });
-      
-      // Optional: Log success to verify the fix
-      console.log(`[PWA] Successfully registered ${id} scope:`, reg.scope);
-  
       if (reg.installing || reg.waiting) {
         await new Promise<void>((resolve) => {
           const sw = reg.installing || reg.waiting;
@@ -93,11 +86,8 @@ export function SyncButton({
 
   const handleSync = useCallback(async () => {
     setReady(false);
-    // 1. Swap the manifest
     updateManifest(id);
-    // 2. Lay the pipes (register SW with scope)
     await ensureCitySw();
-    // 3. Start the sync
     sync(id);
   }, [id, ensureCitySw, sync]);
 
@@ -120,60 +110,63 @@ export function SyncButton({
     e.preventDefault();
     e.stopPropagation();
 
-    const isDone = state === "ready" || ready;
-    
-    // Always ensure manifest and SW are aligned on click
-    updateManifest(id);
-    await ensureCitySw();
+    // If we are currently syncing, don't do anything
+    if (state === "syncing") return;
 
-    if (isDone && isStandalone) return;
-
-    if (isDone && !isStandalone) {
-      if (isMobile) setCoachOpen(true);
+    // We check the 'ready' state which reflects the CURRENT container's cache
+    if (ready) {
+      if (isStandalone) {
+        // In standalone, 'Ready' means we can just treat this as an update trigger
+        handleSync();
+      } else {
+        // In browser, 'Ready' means show the "Add to Home Screen" coach marks
+        if (isMobile) setCoachOpen(true);
+      }
       return;
     }
 
-    if (state !== "syncing") {
-      handleSync();
-    }
+    // If not ready, trigger the initial sync
+    handleSync();
   };
 
   const syncing = state === "syncing";
-  const done = state === "ready" || ready;
   const failed = state === "error";
-  const doneAndStandalone = done && isStandalone;
+
+  // LOGIC UPDATE: Even in standalone, if the cache is empty (ready === false), 
+  // we show the primary "Download" button to force population.
+  const showManagementUI = ready && isStandalone;
 
   return (
-    <div className="flex flex-col gap-1">
-      {doneAndStandalone ? (
+    <div className="flex flex-col gap-1 w-full">
+      {showManagementUI ? (
         <div className="flex flex-col gap-1.5">
           <div className="flex gap-1.5">
             <button
               type="button"
               onClick={handleCheckForUpdates}
               disabled={syncing}
-              className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-[#C9A227]/40 bg-[#C9A227]/10 px-3 py-1.5 text-sm font-medium transition disabled:opacity-70 ${className}`}
+              className={`flex-1 inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 px-3 py-3 text-sm font-bold text-white transition disabled:opacity-70 ${className}`}
               style={style}
             >
               {syncing ? (
                 <>
                   <Loader2 className="size-4 shrink-0 animate-spin" />
-                  <span>{progress}%</span>
+                  <span>Syncing {progress}%</span>
                 </>
               ) : (
                 <>
                   <RefreshCw className="size-4 shrink-0" />
-                  <span>Update</span>
+                  <span>Update Pack</span>
                 </>
               )}
             </button>
             <button
               type="button"
               onClick={handleRemoveOffline}
-              disabled={removing}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              disabled={removing || syncing}
+              className="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/5 px-4 text-zinc-400 transition hover:bg-red-500/10 hover:text-red-400"
             >
-              <Trash2 className="size-4 shrink-0" />
+              <Trash2 className="size-5 shrink-0" />
             </button>
           </div>
         </div>
@@ -182,50 +175,49 @@ export function SyncButton({
           type="button"
           onClick={handleClick}
           disabled={syncing}
-          className={`${className} cursor-pointer`}
+          className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold text-white transition ${className} ${syncing ? 'opacity-70' : ''}`}
           style={style}
-          aria-busy={syncing}
         >
           {syncing ? (
             <>
               <Loader2 className="size-5 shrink-0 animate-spin" />
-              <span>{progress}%</span>
+              <span>Downloading {progress}%</span>
             </>
-          ) : done ? (
+          ) : ready ? (
             <>
-              <Check className="size-5 shrink-0 text-emerald-500" />
+              <Check className="size-5 shrink-0 text-emerald-400" />
               <span>Offline Ready</span>
             </>
           ) : failed ? (
             <>
-              <Download className="size-5 shrink-0" />
-              <span>Retry</span>
+              <RefreshCw className="size-5 shrink-0" />
+              <span>Retry Download</span>
             </>
           ) : (
             <>
               <Download className="size-5 shrink-0" />
-              <span>Download</span>
+              <span>{isStandalone ? "Finish Offline Setup" : "Download for Offline"}</span>
             </>
           )}
         </button>
       )}
 
-      {done && !isStandalone && isMobile && (
-        <p className="text-center text-[10px] leading-tight text-zinc-400">
-          Tap to add to Home Screen
+      {ready && !isStandalone && isMobile && (
+        <p className="text-center text-[10px] mt-1 font-medium uppercase tracking-wider text-zinc-500">
+          Ready • Tap to Install on Home Screen
         </p>
       )}
 
       {syncing && (
-        <div className="h-1 w-full overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
+        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
           <div
-            className="h-full bg-[#C9A227] transition-all duration-300"
+            className="h-full bg-white transition-all duration-300"
             style={{ width: `${progress}%` }}
           />
         </div>
       )}
       
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && <p className="mt-1 text-center text-xs font-medium text-red-400">{error}</p>}
 
       {!isStandalone && isMobile && (
         <div onClick={(e) => e.stopPropagation()}>

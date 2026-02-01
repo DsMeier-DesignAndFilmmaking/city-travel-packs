@@ -19,17 +19,41 @@ export async function GET(
   const manifest = {
     name: `${city.name} Travel Pack`,
     short_name: `${city.name} Pack`,
-    description: "Premium city travel experiences",
+    description: `Premium travel guide for ${city.name}`,
     display: "standalone" as const,
-    // CRITICAL: Trailing slashes ensure the PWA starts within the SW scope
+    
+    // 1. SCOPE LOCKDOWN
+    // This restricts the PWA to only this city folder.
+    // If the user tries to navigate to the main home page, 
+    // it will open in a separate browser tab, keeping the app focused.
     scope: `/city/${citySlug}/`,
+    
+    // 2. START URL
+    // Ensure this matches the scope exactly.
     start_url: `/city/${citySlug}/`, 
-    background_color: "#ffffff",
-    theme_color: "#C9A227",
+    
+    // 3. THEME & VISUALS
+    background_color: "#0f172a", // Matches your site's dark theme
+    theme_color: "#C9A227",      // Matches your Gold theme
     orientation: "portrait" as const,
+    
+    // 4. CATEGORIES & PREFER_NATIVE
+    // These hints help mobile OSs treat the web app more like a native app.
+    categories: ["travel", "guide"],
+    
     icons: [
-      { src: "/icons/default-192.png", sizes: "192x192", type: "image/png" as const },
-      { src: "/icons/default-512.png", sizes: "512x512", type: "image/png" as const },
+      { 
+        src: "/icons/default-192.png", 
+        sizes: "192x192", 
+        type: "image/png" as const,
+        purpose: "any maskable" // Allows Android to shape the icon
+      },
+      { 
+        src: "/icons/default-512.png", 
+        sizes: "512x512", 
+        type: "image/png" as const,
+        purpose: "any" 
+      },
     ],
   };
 
