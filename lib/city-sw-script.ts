@@ -98,15 +98,25 @@ self.addEventListener('fetch', function (event) {
           }
           return networkRes;
         } catch (fetchErr) {
-          // D. OFFLINE FALLBACK (The "Airplane Mode" Logic)
+          // OFFLINE FALLBACK
           if (event.request.mode === 'navigate' || isInCityScope) {
-            // If the user lands on /city/seoul/ or /city/seoul/anything, 
-            // serve the main city entry page.
-            const rootRes = await cache.match('${cityPath}', { ignoreSearch: true });
+            
+            // Try matching with the exact URL first
+            let rootRes = await cache.match(event.request, { ignoreSearch: true });
+            
+            // If that fails, try the canonical city path (no slash)
+            if (!rootRes) {
+              rootRes = await cache.match('${cityPath}', { ignoreSearch: true });
+            }
+            
+            // If that fails, try the path with a slash
+            if (!rootRes) {
+              rootRes = await cache.match('${cityPath}/', { ignoreSearch: true });
+            }
+
             if (rootRes) return rootRes;
           }
 
-          // Guaranteed response to avoid "Response is null" crash
           return new Response("Offline Content Unavailable", {
             status: 503,
             headers: { 'Content-Type': 'text/plain' }
