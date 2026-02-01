@@ -76,21 +76,30 @@ self.addEventListener('fetch', function (event) {
       try {
         const cache = await caches.open(CACHE_NAME);
 
-        // A. CACHE FIRST (Best for Airplane Mode)
-        const cachedRes = await cache.match(event.request, { ignoreSearch: true });
-        if (cachedRes) return cachedRes;
+        // 1. FUZZY CACHE MATCH (Best for Airplane Mode)
+        // We look for: 1. The exact request, 2. /city/tokyo, 3. /city/tokyo/
+        const urlsToTry = [
+          event.request,
+          PAGE_URL,
+          PAGE_URL + '/'
+        ];
 
-        // B. PRELOAD FALLBACK
+        for (const target of urlsToTry) {
+          const match = await cache.match(target, { ignoreSearch: true });
+          if (match) return match;
+        }
+
+        // 2. PRELOAD FALLBACK
         if (event.preloadResponse) {
           const preRes = await event.preloadResponse;
           if (preRes) return preRes;
         }
 
-        // C. NETWORK FALLBACK
+        // 3. NETWORK ATTEMPT
         try {
           const networkRes = await fetch(event.request);
           if (networkRes && networkRes.ok) {
-            // Cache static assets on the fly
+            // Cache static assets (JS/CSS) on the fly to improve future loads
             if (isNextStatic || isNextData) {
               cache.put(event.request, networkRes.clone());
             }
@@ -98,32 +107,23 @@ self.addEventListener('fetch', function (event) {
           }
           return networkRes;
         } catch (fetchErr) {
-          // OFFLINE FALLBACK
+          // 4. AIRPLANE MODE EMERGENCY FALLBACK
+          // If we are navigating to a city page and everything else failed,
+          // try one last time to pull the root PAGE_URL from the cache.
           if (event.request.mode === 'navigate' || isInCityScope) {
-            
-            // Try matching with the exact URL first
-            let rootRes = await cache.match(event.request, { ignoreSearch: true });
-            
-            // If that fails, try the canonical city path (no slash)
-            if (!rootRes) {
-              rootRes = await cache.match('${cityPath}', { ignoreSearch: true });
-            }
-            
-            // If that fails, try the path with a slash
-            if (!rootRes) {
-              rootRes = await cache.match('${cityPath}/', { ignoreSearch: true });
-            }
-
-            if (rootRes) return rootRes;
+            const fallback = await cache.match(PAGE_URL, { ignoreSearch: true }) || 
+                             await cache.match(PAGE_URL + '/', { ignoreSearch: true });
+            if (fallback) return fallback;
           }
 
+          // 5. FINAL ERROR RESPONSE
           return new Response("Offline Content Unavailable", {
             status: 503,
             headers: { 'Content-Type': 'text/plain' }
           });
         }
       } catch (err) {
-        return new Response("SW Error", { status: 500 });
+        return new Response("Service Worker Error", { status: 500 });
       }
     })()
   );

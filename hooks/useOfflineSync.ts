@@ -15,7 +15,6 @@ function cityCacheName(id: string): string {
 async function getCitySwRegistration(slug: string): Promise<ServiceWorkerRegistration | null> {
   if (typeof navigator === "undefined" || !navigator.serviceWorker) return null;
   const regs = await navigator.serviceWorker.getRegistrations();
-  // Matching the specific scope used for city packs
   const scopeSuffix = `/city/${slug}/`; 
   return regs.find((r) => r.scope.endsWith(scopeSuffix)) ?? null;
 }
@@ -31,11 +30,6 @@ export interface UseOfflineSyncResult {
   removeOfflineData: (id: string) => Promise<void>;
 }
 
-/**
- * UPDATED: fetchAndCache handles "opaque" responses.
- * For external assets (no CORS), status is 0 and ok is false. 
- * We must allow caching status 0 for images/scripts from other origins.
- */
 async function fetchAndCache(
   cache: Cache,
   url: string,
@@ -44,7 +38,6 @@ async function fetchAndCache(
   const req = new Request(url, { method: "GET", ...requestInit });
   const res = await fetch(req);
   
-  // Allow ok (200-299) OR opaque (0) responses
   const isOpaque = res.type === 'opaque' || res.status === 0;
   if (!res.ok && !isOpaque) {
     throw new Error(`HTTP ${res.status}: ${url}`);
@@ -73,12 +66,8 @@ export function useOfflineSync(): UseOfflineSyncResult {
 
     const base = window.location.origin;
     const apiUrl = `${base}/api/cities/${encodeURIComponent(id)}`;
-    
-    // ENSURE CONSISTENCY: If your app uses /city/tokyo, use that. 
-    // If your SW scope is /city/tokyo/, ensure you cache both or the exact one used.
     const pageUrl = `${base}/city/${encodeURIComponent(id)}`;
     const pageUrlWithSlash = `${pageUrl}/`; 
-    
     const manifestUrl = `${base}/api/manifest/${encodeURIComponent(id)}.json`;
     const downloadApiUrl = `${base}/api/download-city?slug=${encodeURIComponent(id)}`;
 
@@ -117,10 +106,10 @@ export function useOfflineSync(): UseOfflineSyncResult {
         nextDataUrl = `${base}/_next/data/${buildIdMatch[1]}/city/${encodeURIComponent(id)}.json`;
       }
 
-      // 2. COMBINE URLS
+      // 2. COMBINE ALL URLS FOR BULK SYNC
       const allUrls = Array.from(new Set([
         pageUrl,
-        pageUrlWithSlash, // Cache both to be safe against redirect/slash issues
+        pageUrlWithSlash,
         apiUrl, 
         downloadApiUrl,
         ...(nextDataUrl ? [nextDataUrl] : []),
@@ -129,7 +118,28 @@ export function useOfflineSync(): UseOfflineSyncResult {
         ...fromJson
       ]));
 
-      // 3. DELEGATION TO SERVICE WORKER
+      // 3. PRE-CACHE ENTRY POINTS (CRITICAL FIX)
+      // We manually put the HTML and JSON in the cache before delegation.
+      // This ensures the Debugger turns green immediately.
+      const cache = await caches.open(cityCacheName(id));
+      
+      const pageResponse = new Response(html, { 
+        headers: { "Content-Type": "text/html" } 
+      });
+      const apiResponse = new Response(JSON.stringify(apiData), { 
+        headers: { "Content-Type": "application/json" } 
+      });
+
+      await Promise.all([
+        cache.put(new Request(pageUrl), pageResponse.clone()),
+        cache.put(new Request(pageUrlWithSlash), pageResponse.clone()),
+        cache.put(new Request(apiUrl), apiResponse)
+      ]);
+      
+      // Update progress slightly since entry points are done
+      setProgress(5);
+
+      // 4. DELEGATION TO SERVICE WORKER
       const reg = await getCitySwRegistration(id);
       if (reg?.active) {
         const done = new Promise<void>((resolve, reject) => {
@@ -156,21 +166,12 @@ export function useOfflineSync(): UseOfflineSyncResult {
         return;
       }
 
-      // 4. FALLBACK PHASE: Manual caching
-      const cache = await caches.open(cityCacheName(id));
-      
-      // Store the specific navigation pages explicitly
-      const pageResponse = new Response(html, { headers: docRes.headers });
-      await cache.put(new Request(pageUrl), pageResponse.clone());
-      await cache.put(new Request(pageUrlWithSlash), pageResponse);
-      
-      await cache.put(new Request(apiUrl), new Response(JSON.stringify(apiData), { headers: apiDataRes.headers }));
-
+      // 5. FALLBACK PHASE: Manual caching for the rest of assets
       const total = allUrls.length;
       let completed = 3;
 
       for (const u of allUrls) {
-        // Skip urls we manually put in cache already
+        // Skip entry points we already manually cached
         if (u === apiUrl || u === pageUrl || u === pageUrlWithSlash) continue;
         
         try {
@@ -198,7 +199,6 @@ export function useOfflineSync(): UseOfflineSyncResult {
       const cache = await caches.open(cityCacheName(id));
       const base = window.location.origin;
       const pageUrl = `${base}/city/${encodeURIComponent(id)}`;
-      // Check for either the slashed or non-slashed version
       const page = await cache.match(pageUrl, { ignoreSearch: true });
       return !!page;
     } catch {
