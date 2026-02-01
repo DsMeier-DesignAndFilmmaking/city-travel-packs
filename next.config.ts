@@ -2,11 +2,18 @@ import withSerwistInit from "@serwist/next";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // 'eslint' is removed. Next.js 16 handles linting via the CLI, not the config.
-  
   typescript: {
-    // This property still exists in Next.js 16 for now
     ignoreBuildErrors: true,
+  },
+  // ADD THIS SECTION:
+  async rewrites() {
+    return [
+      {
+        // Matches /sw-seoul.js or /sw-tokyo.js
+        source: "/sw-:city.js",
+        destination: "/api/sw/:city",
+      },
+    ];
   },
 };
 

@@ -17,7 +17,6 @@ function hasCityManifestInjected(cityId: string): boolean {
   if (!link?.href) return false;
   try {
     const url = new URL(link.href, document.baseURI);
-    // Matches /api/manifest/tokyo.json or /api/manifest/tokyo
     return url.pathname.includes("/api/manifest/") && url.pathname.includes(cityId);
   } catch {
     return false;
@@ -26,17 +25,13 @@ function hasCityManifestInjected(cityId: string): boolean {
 
 /**
  * Checks if the city-scoped service worker is registered and active.
- * CRITICAL: We look for the explicit trailing slash scope we set in SyncButton.
  */
 async function isCitySwActive(cityId: string): Promise<boolean> {
   if (typeof navigator === "undefined" || !navigator.serviceWorker) return false;
   try {
     const registrations = await navigator.serviceWorker.getRegistrations();
-    // The browser returns absolute URLs for scopes, e.g., "https://example.com/city/tokyo/"
     const scopeSuffix = `/city/${cityId}/`;
     const reg = registrations.find((r) => r.scope.endsWith(scopeSuffix));
-    
-    // It must exist AND be active (ready to intercept fetch events)
     return !!(reg && reg.active);
   } catch {
     return false;
@@ -51,14 +46,9 @@ async function hasCityAssetsCached(cityId: string): Promise<boolean> {
   try {
     const cacheName = cityScopeCacheName(cityId);
     const cache = await caches.open(cacheName);
-    
     const base = typeof window !== "undefined" ? window.location.origin : "";
     const pathPrefix = `${base}/city/${encodeURIComponent(cityId)}`;
     
-    // We check the three most common ways this page might be accessed/cached
-    // 1. /city/tokyo
-    // 2. /city/tokyo/
-    // 3. /city/tokyo?ignore=this
     const options = { ignoreSearch: true };
     const matched =
       (await cache.match(pathPrefix, options)) ||
@@ -66,7 +56,6 @@ async function hasCityAssetsCached(cityId: string): Promise<boolean> {
 
     if (matched) return true;
 
-    // Fallback: Manually check keys if match fails (extra safety)
     const keys = await cache.keys();
     return keys.some(req => {
       const url = new URL(req.url);
@@ -108,16 +97,31 @@ export function useCityInstallReady(cityId: string): UseCityInstallReadyResult {
     if (!cityId) return;
     let cancelled = false;
 
-    // Initial check
+    // 1. Initial check on mount
     recheck();
 
-    // Listen for custom activation events from the SW registration logic
+    // 2. LISTEN FOR SERVICE WORKER MESSAGES
+    // This catches the 'CITY_SW_ACTIVATED' message from lib/city-sw-script.ts
+    const handleMessage = (event: MessageEvent) => {
+      if (cancelled) return;
+      if (event.data?.type === 'CITY_SW_ACTIVATED' && event.data?.slug === cityId) {
+        console.log(`[PWA] City SW active signal received for ${cityId}`);
+        recheck();
+      }
+    };
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleMessage);
+    }
+
+    // 3. LISTEN FOR CUSTOM DOM EVENTS (Optional fallback for sync logic)
     const onCitySwActivated = () => {
       if (!cancelled) recheck();
     };
     window.addEventListener("city-sw-activated", onCitySwActivated);
 
-    // Polling as a fallback (Service Worker states can be tricky to event-listen)
+    // 4. POLLING FALLBACK
+    // Still useful if the user manually deletes cache or if messages are missed.
     const interval = setInterval(() => {
       if (cancelled) return;
       checkCityInstallReady(cityId).then((ready) => {
@@ -125,10 +129,13 @@ export function useCityInstallReady(cityId: string): UseCityInstallReadyResult {
           setIsCityInstallReady(ready);
         }
       });
-    }, 2000);
+    }, 2500);
 
     return () => {
       cancelled = true;
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleMessage);
+      }
       window.removeEventListener("city-sw-activated", onCitySwActivated);
       clearInterval(interval);
     };

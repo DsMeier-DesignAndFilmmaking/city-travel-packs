@@ -1,5 +1,6 @@
 /**
  * Generates the city-scoped service worker script (standalone).
+ * Optimized for Airplane Mode and isolated from global Serwist logic.
  */
 
 const SLUG_RE = /^[a-z0-9-]+$/;
@@ -17,7 +18,6 @@ export function getCitySwScript(citySlug: string): string {
   const cityPath = `/city/${safe}`;
   const cityPathPrefix = `${cityPath}/`;
   const cityCachePrefix = `city-pack-${safe}-`;
-
   const dataUrl = `/api/download-city?slug=${safe}`;
 
   return `'use strict';
@@ -33,96 +33,87 @@ self.addEventListener('install', function (event) {
 
 self.addEventListener('activate', function (event) {
   event.waitUntil(
-    caches.keys().then(function (names) {
-      return Promise.all(
-        names.map(function (name) {
-          if (name.indexOf(CITY_CACHE_PREFIX) === 0 && name !== CACHE_NAME) {
-            return caches.delete(name);
-          }
-        })
-      );
-    }).then(function () {
-      return self.clients.claim();
-    })
+    Promise.all([
+      // 1. Cleanup old city-specific caches
+      caches.keys().then(function (names) {
+        return Promise.all(
+          names.map(function (name) {
+            if (name.indexOf(CITY_CACHE_PREFIX) === 0 && name !== CACHE_NAME) {
+              return caches.delete(name);
+            }
+          })
+        );
+      }),
+      // 2. Take immediate control
+      self.clients.claim(),
+      // 3. Notify the UI that this specific city SW is ready
+      self.clients.matchAll().then(clients => {
+        clients.forEach(client => client.postMessage({ type: 'CITY_SW_ACTIVATED', slug: CITY }));
+      })
+    ])
   );
 });
 
 self.addEventListener('fetch', function (event) {
   var url = new URL(event.request.url);
   
-  // 1. Only handle same-origin GET requests
-  if (url.origin !== self.location.origin) return;
-  if (event.request.method !== 'GET') return;
+  // Only handle same-origin GET requests
+  if (url.origin !== self.location.origin || event.request.method !== 'GET') return;
 
   var path = url.pathname;
 
-  // 2. Identify if request is within the city's scope or a required asset
+  // Identify scope
   var isInCityScope = path === '${cityPath}' || path.indexOf('${cityPathPrefix}') === 0;
   var isNextStatic = path.indexOf('/_next/static/') === 0;
   var isNextData = path.indexOf('/_next/data/') === 0;
   var isApiRequest = path.indexOf('/api/cities/') === 0 || path.indexOf('/api/download-city') === 0;
+  var isCitySw = path === '/sw-' + CITY + '.js';
 
-  // If it's not part of this city's pack, let the browser handle it normally
-  if (!isInCityScope && !isNextStatic && !isNextData && !isApiRequest) return;
+  if (!isInCityScope && !isNextStatic && !isNextData && !isApiRequest && !isCitySw) return;
 
   event.respondWith(
     (async function() {
       try {
         const cache = await caches.open(CACHE_NAME);
 
-        // 3. ATTEMPT CACHE MATCH
-        // ignoreSearch: true is vital for "Add to Home Screen" apps which often 
-        // append query params that would otherwise cause a cache miss.
+        // A. CACHE FIRST (Best for Airplane Mode)
         const cachedRes = await cache.match(event.request, { ignoreSearch: true });
         if (cachedRes) return cachedRes;
 
-        // 4. ATTEMPT PRELOAD
+        // B. PRELOAD FALLBACK
         if (event.preloadResponse) {
-          try {
-            const preloadedRes = await event.preloadResponse;
-            if (preloadedRes) {
-              cache.put(event.request, preloadedRes.clone());
-              return preloadedRes;
-            }
-          } catch (e) { /* ignore preload failure */ }
+          const preRes = await event.preloadResponse;
+          if (preRes) return preRes;
         }
 
-        // 5. ATTEMPT NETWORK
+        // C. NETWORK FALLBACK
         try {
           const networkRes = await fetch(event.request);
-          // Only cache successful GET responses
           if (networkRes && networkRes.ok) {
-            cache.put(event.request, networkRes.clone());
+            // Cache static assets on the fly
+            if (isNextStatic || isNextData) {
+              cache.put(event.request, networkRes.clone());
+            }
             return networkRes;
           }
-          // If network returned 404/500, return it so the app knows
           return networkRes;
         } catch (fetchErr) {
-          // 6. AIRPLANE MODE FALLBACK
-          // The network failed (no connection).
-          
-          // If this is a navigation request (the main page), return the cached HTML root
+          // D. OFFLINE FALLBACK (The "Airplane Mode" Logic)
           if (event.request.mode === 'navigate' || isInCityScope) {
+            // If the user lands on /city/seoul/ or /city/seoul/anything, 
+            // serve the main city entry page.
             const rootRes = await cache.match('${cityPath}', { ignoreSearch: true });
             if (rootRes) return rootRes;
           }
 
-          // Last ditch effort: try matching the request anywhere in this cache again
-          const lastDitchRes = await cache.match(event.request, { ignoreSearch: true });
-          if (lastDitchRes) return lastDitchRes;
-
-          // 7. CRITICAL: GUARANTEED RETURN
-          // Never let this function return null. If we have nothing, return a 
-          // 503 response so the browser doesn't throw a generic error.
-          return new Response("Offline: Resource not in cache", {
+          // Guaranteed response to avoid "Response is null" crash
+          return new Response("Offline Content Unavailable", {
             status: 503,
-            statusText: "Service Unavailable",
-            headers: new Headers({ 'Content-Type': 'text/plain' })
+            headers: { 'Content-Type': 'text/plain' }
           });
         }
-      } catch (globalErr) {
-        // Fallback for any catastrophic code failure
-        return new Response("Service Worker Error", { status: 500 });
+      } catch (err) {
+        return new Response("SW Error", { status: 500 });
       }
     })()
   );
@@ -130,11 +121,9 @@ self.addEventListener('fetch', function (event) {
 
 self.addEventListener('message', function (event) {
   if (!event.data || event.data.type !== 'download-city-pack') return;
-  var slug = event.data.slug;
-  if (slug !== CITY) return;
+  if (event.data.slug !== CITY) return;
+  
   var source = event.source;
-  if (!source) return;
-
   var urlsToCache = event.data.urls || [PAGE_URL, DATA_URL];
 
   event.waitUntil(
@@ -142,25 +131,15 @@ self.addEventListener('message', function (event) {
       return Promise.all(
         urlsToCache.map(function (url) {
           return fetch(url).then(function (res) {
-            if (res && res.ok) {
+            if (res && (res.ok || res.type === 'opaque' || res.status === 0)) {
               return cache.put(url, res);
             }
           }).catch(function (err) {
-            console.warn('[SW] Failed to fetch and cache:', url, err);
+            console.warn('[SW] Sync fail:', url);
           });
         })
       ).then(function () {
-        try {
-          source.postMessage({ type: 'download-city-pack-done', slug: slug });
-        } catch (e) {}
-      }).catch(function (err) {
-        try {
-          source.postMessage({ 
-            type: 'download-city-pack-done', 
-            slug: slug, 
-            error: String(err) 
-          });
-        } catch (e) {}
+        if (source) source.postMessage({ type: 'download-city-pack-done', slug: CITY });
       });
     })
   );

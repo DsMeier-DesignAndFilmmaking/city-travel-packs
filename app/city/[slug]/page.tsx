@@ -5,7 +5,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { CityDetailLayout } from "./CityDetailLayout";
 import { getCityBySlug, getAllCitySlugs } from "@/lib/data/cities";
 import type { TransitHack, EtiquetteItem, EmergencyInfo } from "@/lib/types/city";
-
+import { OfflineStatusDebugger } from "@/components/OfflineStatusDebugger";
 
 export function generateStaticParams() {
   return getAllCitySlugs().map((slug) => ({ slug }));
@@ -33,37 +33,45 @@ export default async function CityPage({
   if (!city) notFound();
 
   return (
-    <CityDetailLayout slug={city.slug} city={city}>
-      <main className="mx-auto max-w-xl px-4 py-6">
-        <Section
-          id="transit"
-          title="Transit Hacks"
-          icon={<Train className="size-5" />}
-        >
-          {city.transitHacks.map((hack) => (
-            <TransitHackCard key={hack.id} hack={hack} />
-          ))}
-        </Section>
+    <>
+      <CityDetailLayout slug={city.slug} city={city}>
+        <main className="mx-auto max-w-xl px-4 py-6">
+          <Section
+            id="transit"
+            title="Transit Hacks"
+            icon={<Train className="size-5" />}
+          >
+            {city.transitHacks.map((hack) => (
+              <TransitHackCard key={hack.id} hack={hack} />
+            ))}
+          </Section>
 
-        <Section
-          id="etiquette"
-          title="Local Etiquette"
-          icon={<Heart className="size-5" />}
-        >
-          {city.localEtiquette.map((item) => (
-            <EtiquetteCard key={item.id} item={item} />
-          ))}
-        </Section>
+          <Section
+            id="etiquette"
+            title="Local Etiquette"
+            icon={<Heart className="size-5" />}
+          >
+            {city.localEtiquette.map((item) => (
+              <EtiquetteCard key={item.id} item={item} />
+            ))}
+          </Section>
 
-        <Section
-          id="emergency"
-          title="Emergency Info"
-          icon={<Phone className="size-5" />}
-        >
-          <EmergencyCard info={city.emergency} />
-        </Section>
-      </main>
-    </CityDetailLayout>
+          <Section
+            id="emergency"
+            title="Emergency Info"
+            icon={<Phone className="size-5" />}
+          >
+            <EmergencyCard info={city.emergency} />
+          </Section>
+        </main>
+      </CityDetailLayout>
+
+      {/* 2. Insert the Debugger here */}
+      {/* It will float in the bottom-right corner of the screen */}
+      {process.env.NODE_ENV === "development" && (
+        <OfflineStatusDebugger cityId={city.slug} />
+      )}
+    </>
   );
 }
 

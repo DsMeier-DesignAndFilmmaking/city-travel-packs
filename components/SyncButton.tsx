@@ -66,12 +66,16 @@ export function SyncButton({
   const ensureCitySw = useCallback(async () => {
     if (typeof navigator === "undefined" || !navigator.serviceWorker) return null;
     
-    const swUrl = `/api/sw/${id}.js`;
-    const scope = `/city/${id}/`; // Matches the start_url in manifest
+    // UPDATED: Now using the root-level path handled by our rewrite
+    const swUrl = `/sw-${id}.js`; 
+    const scope = `/city/${id}/`; 
     
     try {
       const reg = await navigator.serviceWorker.register(swUrl, { scope });
-      // Wait for it to be active so it can receive messages
+      
+      // Optional: Log success to verify the fix
+      console.log(`[PWA] Successfully registered ${id} scope:`, reg.scope);
+  
       if (reg.installing || reg.waiting) {
         await new Promise<void>((resolve) => {
           const sw = reg.installing || reg.waiting;
