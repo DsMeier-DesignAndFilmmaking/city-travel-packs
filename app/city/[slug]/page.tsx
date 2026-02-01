@@ -65,12 +65,9 @@ export default async function CityPage({
           </Section>
         </main>
       </CityDetailLayout>
-
-      {/* 2. Insert the Debugger here */}
-      {/* It will float in the bottom-right corner of the screen */}
-      {process.env.NODE_ENV === "development" && (
-        <OfflineStatusDebugger cityId={city.slug} />
-      )}
+      
+      <OfflineStatusDebugger cityId={city.slug} />
+      
     </>
   );
 }
